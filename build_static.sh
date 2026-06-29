@@ -15,11 +15,15 @@
 # That keeps the static link self-contained: no X11, Wayland, ALSA,
 # PulseAudio, libudev, ... dependencies to satisfy.
 #
-# Prerequisites:
+# For reproducibility the headless SDL2 is always built from source (the
+# host's system SDL2 is whatever the distro shipped - often X11/Wayland
+# enabled - so we do not rely on it).  Point SDL2_CONFIG at an existing
+# headless static SDL2 to skip the source build.
+#
+# Prerequisites (both distros need a C toolchain + autotools + wget):
 #   Debian/Ubuntu: apt-get install build-essential wget
-#                  (libsdl2-dev is NOT needed - we build a headless SDL2)
 #   Alpine:        apk add build-base linux-headers wget
-#                  (the system static libSDL2.a is already self-contained)
+#   (libsdl2-dev is NOT needed on either - we build our own headless SDL2)
 #
 # Optional knobs (environment):
 #   SDL2_CONFIG=/path/to/sdl2-config   use an existing headless static SDL2
@@ -39,24 +43,23 @@ mkdir -p "$OUT"
 
 TARGETS="${*:-pdp6 pdp10-ka pdp10-ki pdp10-ks}"
 
-# --- 1. Locate or build a self-contained, headless static libSDL2.a ---------
+# --- 1. Build (once) a self-contained, headless static libSDL2.a ------------
 #
-# On Alpine the system SDL2 is already built dependency-light, so
-# `sdl2-config --static-libs` yields a self-contained link.  On Debian the
-# system SDL2 drags in X11/Wayland/audio, so we build our own headless one.
+# The same minimal SDL2 is built from source on every host so the result
+# does not depend on whatever the distro's SDL2 package enabled.  An
+# existing headless build can be reused via SDL2_CONFIG or $DEPS.
 if [ -n "$SDL2_CONFIG" ] && [ -x "$SDL2_CONFIG" ]; then
     SDL_CONFIG=$SDL2_CONFIG
 elif [ -x "$DEPS/bin/sdl2-config" ]; then
     SDL_CONFIG=$DEPS/bin/sdl2-config
-elif [ -f /etc/alpine-release ]; then
-    SDL_CONFIG=$(command -v sdl2-config)
 else
     echo ">> Building headless static SDL2 $SDL_VERSION into $DEPS"
     mkdir -p "$DEPS/src"
     cd "$DEPS/src"
     tarball="SDL2-$SDL_VERSION.tar.gz"
     [ -f "$tarball" ] || wget -q "https://libsdl.org/release/$tarball"
-    [ -d "SDL2-$SDL_VERSION" ] || tar xzf "$tarball"
+    # Extract unless a complete tree (with configure) is already present.
+    [ -f "SDL2-$SDL_VERSION/configure" ] || { rm -rf "SDL2-$SDL_VERSION"; tar xzf "$tarball"; }
     cd "SDL2-$SDL_VERSION"
     # Keep the full SDL API (so sim_video.c links) but drop every backend
     # that would introduce an external shared-library dependency.  The
