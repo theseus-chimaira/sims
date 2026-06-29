@@ -118,6 +118,24 @@
 #if (NUM_DEVS_DPY > 0)
 #include "display/type340.h"
 #include "display/display.h"
+#include "display/ws.h"        /* ws_headless, ws_screenshot() */
+
+#define DPY_DEFAULT_DUMP "dpy.bmp"
+
+/* SET DPY DUMP[=file] - write the shadow framebuffer to a 1-bit BMP */
+static t_stat dpy_set_dump (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+{
+    return ws_screenshot ((cptr && *cptr) ? cptr : DPY_DEFAULT_DUMP);
+}
+
+/* SET DPY HEADLESS / SET DPY GUI - choose shadow framebuffer vs real window.
+ * Effective only before the display is first initialized (i.e. before the
+ * device is enabled and the running program touches the display). */
+static t_stat dpy_set_headless (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+{
+    ws_headless = val;
+    return SCPE_OK;
+}
 
 #define DPY_DEVNUM       0130
 
@@ -195,6 +213,12 @@ MTAB dpy_mod[] = {
               "Display in fullscreen"},
     { FULLSCREEN, 0, NULL, "WINDOW", NULL, NULL, NULL,
               "Display in window"},
+    { MTAB_XTD|MTAB_VDV|MTAB_VALO|MTAB_NC, 0, NULL, "DUMP", &dpy_set_dump, NULL, NULL,
+              "Write current display to a 1-bit BMP file (default " DPY_DEFAULT_DUMP ")"},
+    { MTAB_XTD|MTAB_VDV, 1, NULL, "HEADLESS", &dpy_set_headless, NULL, NULL,
+              "Render to in-memory shadow framebuffer only (no window)"},
+    { MTAB_XTD|MTAB_VDV, 0, NULL, "GUI", &dpy_set_headless, NULL, NULL,
+              "Open a real SDL display window (requires a graphics frontend)"},
     { 0 }
 };
 

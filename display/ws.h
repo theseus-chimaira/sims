@@ -31,8 +31,36 @@
 
 /* unless you're writing a new driver, you shouldn't be looking here! */
 
-extern int ws_init(const char *, int, int, int, void *); 
+#include <stdint.h>             /* uint32_t for ws_write_bmp1() */
+
+extern int ws_init(const char *, int, int, int, void *);
 void ws_shutdown(void);
+
+/*
+ * Headless "shadow framebuffer" support.
+ *
+ * ws_headless selects whether the display library drives a real SDL
+ * window (0) or renders only into the in-memory surface[] shadow
+ * framebuffer (non-zero).  It defaults to headless so that binaries
+ * built against an SDL with no usable graphics frontend do not crash
+ * when a display device is enabled.  A device SET routine may clear it
+ * (e.g. "SET DPY GUI") before the display is first initialized to open
+ * a real window where one is available.
+ *
+ * ws_screenshot() writes the current contents of the shadow
+ * framebuffer to a 1-bit (monochrome) BMP file.  It works in both
+ * headless and windowed modes.  Returns an SCPE_ status code.
+ */
+extern int ws_headless;
+extern int ws_screenshot(const char *filename);
+
+/*
+ * Write an arbitrary monochrome framebuffer (top-origin, one uint32 per
+ * pixel) to a 1-bit BMP file.  Pixels not equal to "background" are
+ * emitted as set.  Usable by devices that maintain their own surfaces
+ * outside the display library (e.g. the Data Disc video switch).
+ */
+extern int ws_write_bmp1(const char *filename, const uint32_t *fb, int w, int h, uint32_t background);
 extern void *ws_color_rgb(int, int, int);
 extern void *ws_color_black(void);
 extern void *ws_color_white(void);

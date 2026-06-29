@@ -32,6 +32,7 @@
 
 #if NUM_DEVS_DD > 0
 #include "sim_video.h"
+#include "display/ws.h"        /* ws_headless, ws_write_bmp1() */
 
 #define DD_DEVNUM         0510
 #define VDS_DEVNUM        0340
@@ -115,6 +116,8 @@ static t_stat dd_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const cha
 static t_stat vds_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cptr);
 static const char *dd_description (DEVICE *dptr);
 static const char *vds_description (DEVICE *dptr);
+static t_stat vds_set_dump (UNIT *uptr, int32 val, CONST char *cptr, void *desc);
+static t_stat vds_set_headless (UNIT *uptr, int32 val, CONST char *cptr, void *desc);
 
 DIB dd_dib = { DD_DEVNUM, 1, dd_devio, NULL};
 
@@ -142,8 +145,18 @@ UNIT vds_unit = {
 
 DIB vds_dib = { VDS_DEVNUM, 1, vds_devio, NULL};
 
+MTAB vds_mod[] = {
+    { MTAB_XTD|MTAB_VDV|MTAB_VALO|MTAB_NC, 0, NULL, "DUMP", &vds_set_dump, NULL, NULL,
+      "Dump a video output to a 1-bit BMP: SET VDS DUMP[=<output>][=<file>] (default output 6, file vds<output>.bmp)"},
+    { MTAB_XTD|MTAB_VDV, 1, NULL, "HEADLESS", &vds_set_headless, NULL, NULL,
+      "Render to in-memory shadow framebuffers only (no windows)"},
+    { MTAB_XTD|MTAB_VDV, 0, NULL, "GUI", &vds_set_headless, NULL, NULL,
+      "Open real SDL display windows (requires a graphics frontend)"},
+    { 0 }
+    };
+
 DEVICE vds_dev = {
-    "VDS", &vds_unit, NULL, NULL,
+    "VDS", &vds_unit, NULL, vds_mod,
     1, 10, 31, 1, 8, 8,
     NULL, NULL, vds_reset,
     NULL, NULL, NULL, &vds_dib, DEV_DEBUG | DEV_DISABLE | DEV_DIS | DEV_DISPLAY, 0, dev_debug,
@@ -591,9 +604,11 @@ dd_display (int n)
     }
 #endif
 
-    vid_draw_window (vds_vptr[n], 0, 0, DD_WIDTH, DD_HEIGHT, vds_surface[n]);
-    vid_refresh_window (vds_vptr[n]);
-    sim_debug (DEBUG_DETAIL, &vds_dev, "Refresh window %p\n", vds_vptr[n]);
+    if (!ws_headless) {         /* headless: shadow framebuffer only */
+        vid_draw_window (vds_vptr[n], 0, 0, DD_WIDTH, DD_HEIGHT, vds_surface[n]);
+        vid_refresh_window (vds_vptr[n]);
+        sim_debug (DEBUG_DETAIL, &vds_dev, "Refresh window %p\n", vds_vptr[n]);
+    }
 }
 
 static t_stat
@@ -680,7 +695,7 @@ vds_reset (DEVICE *dptr)
     int i;
     if (dptr->flags & DEV_DIS || sim_switches & SWMASK('P')) {
         for (i = 0; i < VDS_OUTPUTS; i++) {
-            if (vds_vptr[i] != NULL)
+            if ((vds_vptr[i] != NULL) && !ws_headless)
                 vid_close_window (vds_vptr[i]);
         }
         vds_channel = 0;
@@ -694,6 +709,14 @@ vds_reset (DEVICE *dptr)
     }
 
     for (i = III_DISPLAYS; i < dd_windows + III_DISPLAYS; i++) {
+        if (ws_headless) {
+            /* Headless: no SDL window; keep only the in-memory shadow
+             * framebuffer.  Use fixed palette values (black / green)
+             * since vid_map_rgb_window() needs an SDL window format. */
+            vds_palette[i][0] = 0x00000000;
+            vds_palette[i][1] = 0x0000FF30;
+            continue;
+        }
         if (vds_vptr[i] == NULL) {
             char title[40];
             snprintf (title, sizeof title, "Data Disc display %d", i);
@@ -707,6 +730,64 @@ vds_reset (DEVICE *dptr)
     }
 
     sim_activate (&vds_unit, 1);
+    return SCPE_OK;
+}
+
+/* SET VDS DUMP[=<output>][=<file>] - write one video output's shadow
+ * framebuffer to a 1-bit BMP (512x480).
+ *   SET VDS DUMP                -> output 6, file "vds6.bmp"
+ *   SET VDS DUMP=<output>       -> that output, file "vds<output>.bmp"
+ *   SET VDS DUMP=<output>=<file>-> that output, that file
+ *   SET VDS DUMP=<file>         -> output 6, that file
+ * When no file is given the default name encodes the output number so it
+ * identifies which monitor it came from. */
+static t_stat
+vds_set_dump (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+{
+    int n = III_DISPLAYS;               /* default: first Data Disc output */
+    const char *file = NULL;
+    const char *eq = (cptr != NULL) ? strchr (cptr, '=') : NULL;
+    char namebuf[32];
+    t_stat r;
+
+    if (eq != NULL) {                   /* form: DUMP=<output>=<file> */
+        char numbuf[16];
+        size_t len = (size_t)(eq - cptr);
+        if (len >= sizeof numbuf)
+            return SCPE_ARG;
+        memcpy (numbuf, cptr, len);
+        numbuf[len] = '\0';
+        n = (int)get_uint (numbuf, 10, VDS_OUTPUTS - 1, &r);
+        if (r != SCPE_OK)
+            return r;
+        file = eq + 1;
+    } else if ((cptr != NULL) && (*cptr != '\0')) {
+        /* A bare integer selects the output (with the default name);
+         * anything else is a filename for the default output. */
+        const char *p = cptr;
+        while ((*p >= '0') && (*p <= '9'))
+            p++;
+        if (*p == '\0') {
+            n = (int)get_uint (cptr, 10, VDS_OUTPUTS - 1, &r);
+            if (r != SCPE_OK)
+                return r;
+        } else
+            file = cptr;
+    }
+
+    if ((file == NULL) || (*file == '\0')) {
+        snprintf (namebuf, sizeof namebuf, "vds%d.bmp", n);
+        file = namebuf;
+    }
+    return ws_write_bmp1 (file, vds_surface[n], DD_WIDTH, DD_HEIGHT, vds_palette[n][0]);
+}
+
+/* SET VDS HEADLESS / SET VDS GUI - shadow framebuffers vs real windows.
+ * Effective only before the device is enabled. */
+static t_stat
+vds_set_headless (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+{
+    ws_headless = val;
     return SCPE_OK;
 }
 

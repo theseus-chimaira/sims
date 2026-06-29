@@ -71,6 +71,9 @@ int (*vid_display_kb_event_process)(SIM_KEY_EVENT *kev) = NULL;
 
 static int xpixels, ypixels;
 static int pix_size = PIX_SIZE;
+/* Default to headless: render into the in-memory shadow framebuffer
+ * (surface[]) only, never opening a real SDL window.  See ws.h. */
+int ws_headless = 1;
 static const char *window_name;
 static uint32 *colors = NULL;
 static uint32 ncolors = 0, size_colors = 0;
@@ -214,6 +217,9 @@ ws_poll(int *valp, int maxus)
 
     if (maxus > 1000)
         sim_os_ms_sleep (maxus/1000);
+
+    if (ws_headless)            /* no SDL window to poll events from */
+        return 1;
 
     if (SCPE_OK == vid_poll_mouse (&mev)) {
         unsigned char old_lp_sw = display_lp_sw;
@@ -388,13 +394,26 @@ ws_init(const char *name, int xp, int yp, int colors, void *dptr)
 {
     int i;
     int ret;
-    
-    arrow_cursor = ws_create_cursor (arrow);
-    cross_cursor = ws_create_cursor (cross);
+
     xpixels = xp;
     ypixels = yp;
     window_name = name;
     surface = (uint32 *)realloc (surface, xpixels*ypixels*sizeof(*surface));
+    if (surface == NULL)
+        return 0;
+    if (ws_headless) {
+        /* Headless: keep only the in-memory shadow framebuffer; never
+         * touch SDL (no window, renderer, cursor or pixel format).  Use
+         * fixed monochrome palette values since vid_map_rgb() needs an
+         * SDL window format that does not exist here. */
+        ws_palette[0] = 0x00000000;                     /* black */
+        ws_palette[1] = 0x00FFFFFF;                     /* white */
+        for (i=0; i<xpixels*ypixels; i++)
+            surface[i] = ws_palette[0];
+        return 1;
+    }
+    arrow_cursor = ws_create_cursor (arrow);
+    cross_cursor = ws_create_cursor (cross);
     ret = (0 == vid_open ((DEVICE *)dptr, name, xp*pix_size, yp*pix_size, 0));
     if (ret)
         vid_set_cursor (1, arrow_cursor->width, arrow_cursor->height, arrow_cursor->data, arrow_cursor->mask, arrow_cursor->hot_x, arrow_cursor->hot_y);
@@ -408,17 +427,109 @@ ws_init(const char *name, int xp, int yp, int colors, void *dptr)
 void
 ws_shutdown(void)
 {
+if (ws_headless)                                        /* no SDL resources */
+    return;
 ws_free_cursor(arrow_cursor);
 ws_free_cursor(cross_cursor);
 vid_close();
+}
+
+/*
+ * Write an arbitrary monochrome framebuffer to a 1-bit BMP file.
+ * Any pixel that differs from the background value is written as set
+ * (white).  BMP scan lines are stored bottom-up while these
+ * framebuffers are top-origin, so rows are emitted from the last to the
+ * first.  No external image library is required.  Shared by the display
+ * library (ws_screenshot) and by devices that keep their own surfaces
+ * (e.g. the Data Disc video switch).
+ */
+int
+ws_write_bmp1(const char *filename, const uint32 *fb, int w, int h, uint32 background)
+{
+    FILE *f;
+    int x, y;
+    unsigned char *rowbuf;
+    int rowbytes  = ((w + 31) / 32) * 4;                /* padded to 4 bytes */
+    uint32 imgsize  = (uint32)rowbytes * (uint32)h;
+    uint32 offset   = 14 + 40 + 8;                      /* headers + 2 colors */
+    uint32 filesize = offset + imgsize;
+    unsigned char hdr[14 + 40 + 8];
+
+    if ((fb == NULL) || (w <= 0) || (h <= 0)) {
+        sim_printf ("No display framebuffer to dump\n");
+        return SCPE_UDIS;
+    }
+    f = sim_fopen (filename, "wb");
+    if (f == NULL) {
+        sim_printf ("Can't open screenshot file: %s\n", filename);
+        return SCPE_OPENERR;
+    }
+    memset (hdr, 0, sizeof (hdr));
+    /* BITMAPFILEHEADER */
+    hdr[0] = 'B'; hdr[1] = 'M';
+    hdr[2]  = filesize         & 0xFF; hdr[3]  = (filesize >> 8)  & 0xFF;
+    hdr[4]  = (filesize >> 16) & 0xFF; hdr[5]  = (filesize >> 24) & 0xFF;
+    hdr[10] = offset           & 0xFF; hdr[11] = (offset >> 8)    & 0xFF;
+    hdr[12] = (offset >> 16)   & 0xFF; hdr[13] = (offset >> 24)   & 0xFF;
+    /* BITMAPINFOHEADER */
+    hdr[14] = 40;                                       /* header size */
+    hdr[18] = w                & 0xFF; hdr[19] = (w >> 8)         & 0xFF;
+    hdr[20] = (w >> 16)        & 0xFF; hdr[21] = (w >> 24)        & 0xFF;
+    hdr[22] = h                & 0xFF; hdr[23] = (h >> 8)         & 0xFF;
+    hdr[24] = (h >> 16)        & 0xFF; hdr[25] = (h >> 24)        & 0xFF;
+    hdr[26] = 1;                                        /* planes */
+    hdr[28] = 1;                                        /* bits per pixel */
+    hdr[34] = imgsize          & 0xFF; hdr[35] = (imgsize >> 8)   & 0xFF;
+    hdr[36] = (imgsize >> 16)  & 0xFF; hdr[37] = (imgsize >> 24)  & 0xFF;
+    hdr[46] = 2;                                        /* colors used */
+    hdr[50] = 2;                                        /* colors important */
+    /* color table (BGRA): index 0 black (already zero), index 1 white */
+    hdr[58] = 0xFF; hdr[59] = 0xFF; hdr[60] = 0xFF; hdr[61] = 0x00;
+    sim_fwrite (hdr, 1, sizeof (hdr), f);
+
+    rowbuf = (unsigned char *)calloc (1, rowbytes);
+    if (rowbuf == NULL) {
+        fclose (f);
+        return SCPE_MEM;
+    }
+    for (y = h - 1; y >= 0; y--) {                      /* bottom-up */
+        memset (rowbuf, 0, rowbytes);
+        for (x = 0; x < w; x++)
+            if (fb[y*w + x] != background)
+                rowbuf[x >> 3] |= (unsigned char)(0x80 >> (x & 7));
+        sim_fwrite (rowbuf, 1, rowbytes, f);
+    }
+    free (rowbuf);
+    fclose (f);
+    if (!sim_quiet)
+        sim_printf ("Display dumped to %s (%dx%d, 1-bit BMP)\n", filename, w, h);
+    return SCPE_OK;
+}
+
+/*
+ * Dump the display library's shadow framebuffer (used by DPY, III, ...).
+ */
+int
+ws_screenshot(const char *filename)
+{
+    if ((surface == NULL) || (xpixels <= 0) || (ypixels <= 0)) {
+        sim_printf ("No display framebuffer to dump\n");
+        return SCPE_UDIS;
+    }
+    return ws_write_bmp1 (filename, surface, xpixels, ypixels, ws_palette[0]);
 }
 
 void *
 ws_color_rgb(int r, int g, int b)
 {
     uint32 color, i;
-    
-    color = vid_map_rgb ((r >> 8) & 0xFF, (g >> 8) & 0xFF, (b >> 8) & 0xFF);
+
+    if (ws_headless)                                    /* no SDL pixel format */
+        color = (((uint32)((r >> 8) & 0xFF)) << 16) |
+                (((uint32)((g >> 8) & 0xFF)) << 8) |
+                 ((uint32)((b >> 8) & 0xFF));
+    else
+        color = vid_map_rgb ((r >> 8) & 0xFF, (g >> 8) & 0xFF, (b >> 8) & 0xFF);
     for (i=0; i<ncolors; i++) {
         if (colors[i] == color)
             return &colors[i];
@@ -474,6 +585,8 @@ ws_display_point(int x, int y, void *color)
   
 void
 ws_sync(void) {
+    if (ws_headless)            /* shadow framebuffer already up to date */
+        return;
     vid_draw (0, 0, xpixels, ypixels, surface);
     vid_refresh ();
 }
