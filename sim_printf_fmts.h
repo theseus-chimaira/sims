@@ -48,9 +48,9 @@
 #  define POINTER_FMT    "p"
 
 #elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__) || \
-      defined(__APPLE__)
+      defined(__APPLE__) || defined(__linux__) || defined(__linux)
 
-/* GNU libc (Linux) and macOS */
+/* GNU libc, musl, other Linux, and macOS */
 #  define LL_FMT         "ll"
 #  define SIZE_T_FMT     "z"
 #  define T_UINT64_FMT   "ll"

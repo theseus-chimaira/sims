@@ -492,7 +492,7 @@ if (NULL == _sim_expand_homedir (file, namebuf, sizeof (namebuf)))
 #if defined (VMS)
 f = fopen (namebuf, mode, "ALQ=32", "DEQ=4096",
                           "MBF=6", "MBC=127", "FOP=cbt,tef", "ROP=rah,wbh", "CTX=stm");
-#elif (defined (__linux) || defined (__linux__) || defined (__hpux) || defined (_AIX)) && !defined (DONT_DO_LARGEFILE)
+#elif (defined (__linux) || defined (__linux__) || defined (__hpux) || defined (_AIX)) && !defined (DONT_DO_LARGEFILE) && defined(__GLIBC__)
 f = fopen64 (namebuf, mode);
 #else
 f = fopen (namebuf, mode);
@@ -552,9 +552,9 @@ return (t_offset)_ftelli64 (st);
 
 #endif                                                  /* end Windows */
 
-/* Linux */
+/* Linux with glibc - use 64-bit explicit LFS calls */
 
-#if defined (__linux) || defined (__linux__) || defined (__hpux) || defined (_AIX)
+#if (defined (__linux) || defined (__linux__) || defined (__hpux) || defined (_AIX)) && defined(__GLIBC__)
 #define S_SIM_IO_FSEEK_EXT_ 1
 int sim_fseeko (FILE *st, t_offset xpos, int origin)
 {
@@ -566,7 +566,23 @@ t_offset sim_ftell (FILE *st)
 return (t_offset)(ftello64 (st));
 }
 
-#endif                                                  /* end Linux with LFS */
+#endif                                                  /* end Linux with glibc LFS */
+
+/* Linux without glibc (e.g., musl libc) - natively supports large files via fseeko/ftello */
+
+#if (defined (__linux) || defined (__linux__) || defined (__hpux) || defined (_AIX)) && !defined(__GLIBC__)
+#define S_SIM_IO_FSEEK_EXT_ 1
+int sim_fseeko (FILE *st, t_offset xpos, int origin)
+{
+return fseeko (st, (off_t)xpos, origin);
+}
+
+t_offset sim_ftell (FILE *st)
+{
+return (t_offset)(ftello (st));
+}
+
+#endif                                                  /* end Linux without glibc */
 
 /* Apple OS/X */
 

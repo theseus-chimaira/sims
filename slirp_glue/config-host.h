@@ -12,7 +12,11 @@ typedef int SOCKET;
 #endif
 
 #ifndef  __cplusplus
+# if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#  include <stdbool.h>
+# else
 typedef int bool;
+# endif
 #endif
 #ifdef _MSC_VER
 #include <win32/stdint.h>
