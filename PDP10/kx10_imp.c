@@ -1769,7 +1769,7 @@ imp_packet_out(struct imp_device *imp, ETH_PACK *packet) {
                     (nip >> 24) & 0xFF, (nip >> 16) & 0xFF,
                     (nip >> 8) & 0xFF, nip&0xff);
                /* Copy over rest of string */
-               while(i < l) {
+               while(i < l && nlen < (int)(sizeof(port_buffer) - 1)) {
                    port_buffer[nlen++] = tcp_payload[i++];
                }
                port_buffer[nlen] = '\0';
