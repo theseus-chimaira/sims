@@ -145,10 +145,10 @@ filter_glibc_static_warnings()
             skip_prev = 0
             next
         }
-        /\/usr\/bin\/ld: .*: note: the message above does not take linker garbage collection into account/ {
+        /: note: the message above does not take linker garbage collection into account$/ {
             next
         }
-        /\/usr\/bin\/ld: .*: in function `[^'\'']*'\''[:]$/ {
+        /: in function `[^'\'']*'\''[:]$/ {
             prev = $0
             skip_prev = 1
             next
