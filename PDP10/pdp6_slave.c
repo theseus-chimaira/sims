@@ -61,6 +61,8 @@ static t_stat slave_attach_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag,
 static const char *slave_description (DEVICE *dptr);
 static uint8  slave_valid[040000];
 
+static DIB slave_dib = { SLAVE_DEVNUM, 1, &slave_devio, NULL };
+
 UNIT slave_unit[1] = {
   { UDATA (&slave_svc, UNIT_IDLE|UNIT_ATTABLE, 0), 1000 },
 };
@@ -95,7 +97,7 @@ DEVICE slave_dev = {
   NULL,                                               /* boot */
   slave_attach,                                       /* attach */
   slave_detach,                                       /* detach */
-  NULL,                                               /* context */
+  &slave_dib,                                         /* context */
   DEV_DISABLE | DEV_DIS | DEV_DEBUG | DEV_MUX,
   DEBUG_CMD,                                          /* debug control */
   slave_debug,                                        /* debug flags */
