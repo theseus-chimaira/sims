@@ -243,12 +243,41 @@ echo ">> Using compiler: $BUILD_CC"
 echo ">> Using GNU make: $BUILD_MAKE"
 echo ">> Using static-link flags:$STATIC_LINK_FLAGS"
 
+# The SIMH makefile decides whether to compile display devices before the
+# compiler command is emitted.  Its normal library discovery only sees host
+# installation paths, so merely rewriting sdl2-config in the emitted command
+# is too late on hosts without SDL2 development packages.  Preserve the
+# makefile's own discovered paths and prepend the bundled SDL prefix while
+# asking for the command.
+probe_make_paths_v1()
+{
+    $BUILD_MAKE -s GCC="$BUILD_CC" \
+        --eval '.PHONY: __static_paths_v1' \
+        --eval '__static_paths_v1: ; @printf "__SIMH_INCPATH_V1__%s\\n__SIMH_LIBPATH_V1__%s\\n" "$(INCPATH)" "$(LIBPATH)"' \
+        __static_paths_v1
+}
+
+MAKE_PATHS_V1=$(probe_make_paths_v1)
+SIMH_HOST_INCPATH_V1=$(printf '%s\n' "$MAKE_PATHS_V1" | sed -n 's/^__SIMH_INCPATH_V1__//p')
+SIMH_HOST_LIBPATH_V1=$(printf '%s\n' "$MAKE_PATHS_V1" | sed -n 's/^__SIMH_LIBPATH_V1__//p')
+SDL_PREFIX_V1=$($SDL_CONFIG --prefix)
+if [ -z "$SIMH_HOST_INCPATH_V1" ] || [ -z "$SIMH_HOST_LIBPATH_V1" ] || [ -z "$SDL_PREFIX_V1" ]; then
+    echo "  !! could not determine SIMH/SDL build paths" >&2
+    exit 1
+fi
+SIMH_STATIC_INCPATH_V1="$SDL_PREFIX_V1/include $SIMH_HOST_INCPATH_V1"
+SIMH_STATIC_LIBPATH_V1="$SDL_PREFIX_V1/lib $SIMH_HOST_LIBPATH_V1"
+
 # --- 2. Build each target, re-linked fully static --------------------------
 for t in $TARGETS; do
     echo "=== $t ==="
     rm -f "BIN/$t"
     # Grab the single gcc/cc invocation make would run for this target.
-    cmd=$($BUILD_MAKE -n GCC="$BUILD_CC" "$t" 2>/dev/null | grep -E "^($BUILD_CC|gcc|cc) .* -o " | head -1)
+    cmd=$($BUILD_MAKE -n GCC="$BUILD_CC" \
+        INCPATH="$SIMH_STATIC_INCPATH_V1" \
+        LIBPATH="$SIMH_STATIC_LIBPATH_V1" \
+        SDLX_CONFIG="$SDL_CONFIG" \
+        "$t" 2>/dev/null | grep -E "^($BUILD_CC|gcc|cc) .* -o " | head -1)
     if [ -z "$cmd" ]; then
         echo "  !! could not obtain build command for $t" >&2
         exit 1

@@ -534,7 +534,7 @@ mtc_srv(UNIT * uptr)
              if (uptr->flags & MTUF_7TRK) {
                  cc = 6 * (5 - i);
                  if ((((uptr->CNTRL & ODD_PARITY) ? 0x40 : 0) ^
-                       parity_table[ch & 0x3f]) != 0) {
+                       parity_table[ch & 0x3f]) != (ch & 0x40)) {
                        mtc_status |= PARITY_ERR;
                  }
                  hold_reg |= (uint64)(ch & 0x3f) << cc;
@@ -584,7 +584,7 @@ mtc_srv(UNIT * uptr)
              if (uptr->flags & MTUF_7TRK) {
                  cc = 6 * (5 - i);
                  if ((((uptr->CNTRL & ODD_PARITY) ? 0x40 : 0) ^
-                       parity_table[ch & 0x3f]) != 0) {
+                       parity_table[ch & 0x3f]) != (ch & 0x40)) {
                        mtc_status |= PARITY_ERR;
                  }
                  hold_reg |= (uint64)(ch & 0x3f) << cc;
@@ -641,7 +641,7 @@ mtc_srv(UNIT * uptr)
                           mtc_status |= PARITY_ERR;
                      }
                      mtc_buffer[uptr->BPOS] &= 0x3f;
-                     cc = 6 * (6 - i);
+                     cc = 6 * (5 - i);
                      ch = (hold_reg >> cc) & 0x3f;
                  } else {
                      if ((uptr->CNTRL & ODD_PARITY) == 0)
@@ -691,7 +691,7 @@ mtc_srv(UNIT * uptr)
             sim_debug(DEBUG_DETAIL, dptr, "MTC%o Write data %012llo\n", unit, hold_reg);
             for(i = 0; i < cc_max; i++) {
                 if (uptr->flags & MTUF_7TRK) {
-                    cc = 6 * (6 - i);
+                    cc = 6 * (5 - i);
                     ch = (hold_reg >> cc) & 0x3f;
                     ch |= ((uptr->CNTRL & ODD_PARITY) ? 0x40 : 0) ^
                               parity_table[ch & 0x3f];

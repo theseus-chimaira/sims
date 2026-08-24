@@ -53,6 +53,16 @@
 #define DATA     0000377
 #define LINE     0000077        /* Line number in Left */
 
+/*
+ * WAITS numbers DC630 lines starting at two.  The real PDP-6 Type 630
+ * interface exposes the scanner and send-buffer line numbers directly.
+ * Keep the historical WAITS compatibility only in the KA10 build.
+ */
+#if PDP6
+#define DCS_LINE_BIAS 0
+#else
+#define DCS_LINE_BIAS 2
+#endif
 
 int      dcs_rx_scan = 0;                        /* Scan counter */
 int      dcs_tx_scan = 0;                        /* Scan counter */
@@ -178,8 +188,14 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
 
     case DATAO:
     case DATAO|4:
+#if PDP6
+         /* PDP-6: DCSA uses the send buffer; DCSB uses the receiver scanner. */
+         ln = (dev & 4) ? dcs_rx_scan : dcs_send_line;
+#else
+         /* Preserve the historical WAITS/KA10 simulator convention. */
          ln = (dev & 4) ? dcs_send_line : dcs_tx_scan;
-         if (ln < dcs_desc.lines) {
+#endif
+         if (ln >= 0 && ln < dcs_desc.lines) {
              lp = &dcs_ldsc[ln];
              if (lp->conn) {
                 int32 ch = *data & DATA;
@@ -187,9 +203,18 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
                 tmxr_putc_ln (lp, ch);
                 dcs_tx_enable |= (1 << ln);
              }
+#if PDP6
+             /* DATAO clears the flag associated with the selected line. */
+             dcs_rx_rdy &= ~(1 << ln);
+#endif
          }
          if (dev & 4) {
+#if PDP6
+             /* DATAO DCSB releases the receiver scanner. */
+             uptr->STATUS |= RSCN_ACT;
+#else
              uptr->STATUS |= XSCN_ACT;
+#endif
              dcs_doscan(uptr);
          }
          sim_debug(DEBUG_DATAIO, &dcs_dev, "DC %03o DATO %012llo PC=%06o\n",
@@ -221,18 +246,22 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
                     dev, *data, PC);
          break;
     case CONI|4:
-         /* Read in scanner */
-         if ((uptr->STATUS & (RSCN_ACT)) != 0)
-             *data = (uint64)(dcs_tx_scan) + 2;
+         /* DCSB reads the receiver/scanner counter on the PDP-6. */
+#if PDP6
+         *data = (uint64)dcs_rx_scan;
+#else
+         if ((uptr->STATUS & RSCN_ACT) != 0)
+             *data = (uint64)dcs_tx_scan + DCS_LINE_BIAS;
          else
-             *data = (uint64)(dcs_rx_scan) + 2;
+             *data = (uint64)dcs_rx_scan + DCS_LINE_BIAS;
+#endif
          sim_debug(DEBUG_CONI, &dcs_dev, "DCS %03o CONI %06o PC=%o recieve line\n",
                dev, (uint32)*data, PC);
          break;
 
     case CONO|4:
-         /* Output buffer pointer */
-         dcs_send_line = (int)(*data & 077) - 2;
+         /* DCSB loads the send-buffer line selection. */
+         dcs_send_line = (int)(*data & 077) - DCS_LINE_BIAS;
          sim_debug(DEBUG_CONO, &dcs_dev, "DCS %03o CONO %06o PC=%06o send line\n",
                dev, (uint32)*data, PC);
          break;
