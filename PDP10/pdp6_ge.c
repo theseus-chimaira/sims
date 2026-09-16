@@ -41,6 +41,8 @@
 
 #define GE_CONSOLES   4
 
+#define GE_ASCII      (1u << DEV_V_UF) /* Transparent seven-bit input. */
+
 #define GTYI_PIA      00007   /* PI assignment. */
 #define GTYI_DONE     00010   /* Input data ready. */
 #define GTYI_STATUS   (GTYI_PIA | GTYI_DONE)
@@ -67,6 +69,9 @@ static t_stat gtyo_devio(uint32 dev, uint64 *data);
 static t_stat ge_reset(DEVICE *dptr);
 static t_stat ge_attach(UNIT *uptr, CONST char *ptr);
 static t_stat ge_detach(UNIT *uptr);
+static t_stat ge_set_ascii(UNIT *uptr, int32 val, CONST char *cptr, void *desc);
+static t_stat ge_set_legacy(UNIT *uptr, int32 val, CONST char *cptr, void *desc);
+static t_stat ge_show_input(FILE *st, UNIT *uptr, int32 val, CONST void *desc);
 static t_stat ge_attach_help(FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cptr);
 static const char *ge_description(DEVICE *dptr);
 
@@ -94,6 +99,8 @@ static REG ge_reg[] = {
 };
 
 static MTAB ge_mod[] = {
+  { MTAB_VDV, 0, "INPUT", "ASCII", &ge_set_ascii, &ge_show_input },
+  { MTAB_VDV, 0, NULL, "LEGACY", &ge_set_legacy },
   { 0 }
 };
 
@@ -133,6 +140,24 @@ DEVICE gtyo_dev = {
 
 static TMLN ge_ldsc[GE_CONSOLES];
 static TMXR ge_desc = { GE_CONSOLES, 0, 0, ge_ldsc };
+
+static t_stat ge_set_ascii(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+{
+  ge_dev.flags |= GE_ASCII;
+  return SCPE_OK;
+}
+
+static t_stat ge_set_legacy(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+{
+  ge_dev.flags &= ~GE_ASCII;
+  return SCPE_OK;
+}
+
+static t_stat ge_show_input(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+{
+  fprintf(st, "input=%s", (ge_dev.flags & GE_ASCII) ? "ASCII" : "LEGACY");
+  return SCPE_OK;
+}
 
 static t_stat ge_reset(DEVICE *dptr)
 {
@@ -206,11 +231,13 @@ static void gtyi_poll(UNIT *uptr)
     if (ch & TMXR_VALID) {
       ch &= 0177;
       sim_debug(DEBUG_CMD, &ge_dev, "Port %d got %03o\n", i, ch);
-      if (ch >= 0141 && ch <= 0172)
-        ch -= 0100;
-      else if (ch == 0140 || (ch >= 0173 && ch <= 0174)) {
-        sim_debug(DEBUG_CMD, &ge_dev, "Discard invalid character\n");
-        continue;
+      if ((ge_dev.flags & GE_ASCII) == 0) {
+        if (ch >= 0141 && ch <= 0172)
+          ch -= 0100;
+        else if (ch == 0140 || (ch >= 0173 && ch <= 0174)) {
+          sim_debug(DEBUG_CMD, &ge_dev, "Discard invalid character\n");
+          continue;
+        }
       }
 
       uptr->DATA = ch;
