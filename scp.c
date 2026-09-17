@@ -8537,16 +8537,22 @@ d = find_dev_from_unit(uptr);
 if (!d)
     return "";
 if (d->numunits == 1)
-    sprintf (uname, "%s", sim_dname (d));
+    snprintf (uname, sizeof (uname), "%s", sim_dname (d));
 else
-    sprintf (uname, "%s%d", sim_dname (d), (int)(uptr-d->units));
+    snprintf (uname, sizeof (uname), "%s%d", sim_dname (d), (int)(uptr-d->units));
 return sim_set_uname (uptr, uname);
 }
 
 const char *sim_set_uname (UNIT *uptr, const char *uname)
 {
+size_t uname_size = 1 + strlen (uname);
+char *new_uname = (char *)malloc (uname_size);
+
+if (new_uname == NULL)
+    return NULL;
+strlcpy (new_uname, uname, uname_size);
 free (uptr->uname);
-return uptr->uname = strcpy ((char *)malloc (1 + strlen (uname)), uname);
+return uptr->uname = new_uname;
 }
 
 
@@ -14748,16 +14754,19 @@ if (topic->level == 0) {
 else
     prefix = helpPrompt (topic->parent, "", oneword);
 
-newp = (char *) malloc (strlen (prefix) + 1 + strlen (topic->title) + 1 +
-                        strlen (pstring) +1);
+{
+size_t newp_size = strlen (prefix) + 1 + strlen (topic->title) + 1 +
+                   strlen (pstring) + 1;
+
+newp = (char *) malloc (newp_size);
 if (!newp) {
     free (prefix);
     FAIL (SCPE_MEM, No memory, NULL);
     }
-strcpy (newp, prefix);
+strlcpy (newp, prefix, newp_size);
 if (topic->children) {
     if (topic->level != 0)
-        strcat (newp, " ");
+        strlcat (newp, " ", newp_size);
     newt = (topic->flags & HLP_MAGIC_TOPIC)?
             topic->title+1: topic->title;
     if (oneword) {
@@ -14769,11 +14778,12 @@ if (topic->children) {
         *np = '\0';
         }
     else
-        strcat (newp, newt);
+        strlcat (newp, newt, newp_size);
     if (*pstring && *pstring != '?')
-        strcat (newp, " ");
+        strlcat (newp, " ", newp_size);
     }
-strcat (newp, pstring);
+strlcat (newp, pstring, newp_size);
+}
 free (prefix);
 return newp;
 }
