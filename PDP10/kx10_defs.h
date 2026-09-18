@@ -737,7 +737,7 @@ extern void ka10_lights_clear_aux (int);
 
 
 /* I/O system parameters */
-#if !(PDP6 | KS)
+#if !KS
 #define NUM_DEVS_LP     1
 #endif
 #if !(KS)
@@ -795,6 +795,9 @@ extern void ka10_lights_clear_aux (int);
 #if !(PDP6)
 #define NUM_DEVS_TU     1
 #define NUM_DEVS_IMP    1
+#endif
+#if PDP6
+#define NUM_DEVS_PCLK   1
 #endif
 #if KA
 #define NUM_DEVS_PMP    WAITS

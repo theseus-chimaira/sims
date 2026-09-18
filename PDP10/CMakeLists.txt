@@ -187,6 +187,7 @@ add_simulator(pdp6
         ${PDP6D}/pdp6_mtc.c
         ${PDP6D}/pdp6_dsk.c
         ${PDP6D}/pdp6_dcs.c
+        ${PDP6D}/ka10_pclk.c
         ${PDP6D}/kx10_dpy.c
         ${PDP6D}/pdp6_slave.c
         ${PDP6D}/pdp6_ge.c

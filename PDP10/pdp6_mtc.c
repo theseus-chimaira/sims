@@ -108,14 +108,13 @@
 
 /* CONO to MTS */
 #define ENB_ICE         0000001  /* Control Ready */
-#define ENB_JNU         0000002  /* Set monitor unit */
+#define SEL_UNIT        0000002  /* Select command-buffer unit for status */
 #define ENB_ERF         0000004  /* End of Record */
 #define ENB_XNE         0040000  /* New command rdy */
 #define ENB_LIE         0100000  /* Load point */
 
 /* IRQ Masks in status */
 #define IRQ_ICE         001000000 
-#define IRQ_JNU         002000000
 #define IRQ_ERF         004000000
 #define IRQ_XNE         010000000
 #define IRQ_LIE         020000000
@@ -305,9 +304,9 @@ mtc_devio(uint32 dev, uint64 *data) {
 
          case CONO:
               mtc_status &= 00777777;
-              mtc_status |= (*data & 07) << 18;
+              mtc_status |= (*data & (ENB_ICE|ENB_ERF)) << 18;
               mtc_status |= (*data & (ENB_XNE|ENB_LIE)) << 7;
-              if (*data & TAPE_RDY && (mtc_hold_cmd & FUNCTION) == 0) {
+              if (*data & SEL_UNIT && (mtc_hold_cmd & FUNCTION) == 0) {
                  /* Switch to drive to check status */
                  mtc_sel_unit = (mtc_hold_cmd >> 4) & 07;
               } 
@@ -373,16 +372,6 @@ mtc_checkirq(UNIT * uptr)
         set_interrupt(MTC_DEVCTL, mtc_pia);
         return;
     }
-#if 0
-    /* Need to verify if this is real interrupt or not */
-    if ((mtc_status & IRQ_JNU) != 0 &&
-        (mtc_hold_cmd & CMD_FULL) == 0 &&
-        (uptr->CNTRL & (MTC_START|MTC_BUSY)) == 0) {
-           sim_debug(DEBUG_DETAIL, &mtc_dev, "MTC%o jnu %o %08o\n", mtc_sel_unit, mtc_pia, mtc_status);
-       set_interrupt(MTC_DEVCTL, mtc_pia);
-       return;
-    }
-#endif
 } 
 
 /* Handle processing of tape requests. */
@@ -877,7 +866,7 @@ mtc_reset(DEVICE * dptr)
     }
     mtc_pia = 0;
     mtc_status = 0;
-    mtc_sel_unit = TAPE_FREE|TAPE_RDY;
+    mtc_sel_unit = 0;
     return SCPE_OK;
 }
 
