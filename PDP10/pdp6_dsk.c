@@ -205,7 +205,7 @@ dsk_devio(uint32 dev, uint64 *data) {
      case CONO:
           clr_interrupt(dev);
           if (*data & SCL)
-              dsk_status &= ADE|CME|DCE|DRL|FER|PER|RCE|SECT_END;
+              dsk_status &= ~(ADE|CME|DCE|DRL|FER|PER|RCE|SECT_END);
           /* If disk controller is busy */
           if (dsk_octflp & (ALS|CMS|SCS|SCE)) {
               /* Only update IRQ flags and stop flags */
