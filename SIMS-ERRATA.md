@@ -2,6 +2,8 @@
 
 Audit date: 2026-08-24
 
+Provenance notes updated: 2026-10-02
+
 Base tree: `d61c7bce76c3374e253ff7953c613e8b7137af89`
 
 This document records the PDP-6 simulator discrepancies that were found while
@@ -89,3 +91,63 @@ File: `PDP10/pdp6_slave.c`
 
 This commit supplies the SLAVE device with its `DIB` through `DEVICE.context`,
 so PDP-6 device 0020 can actually be mapped when SLAVE is enabled.
+
+## Type 167 I/O processor and Type 236 drum
+
+File: `PDP10/pdp6_drum.c`
+
+The Type 167/Type 236 implementation was reconstructed primarily from the
+observable programming interface used by the PDP-6 JOSS-II sources rather
+than from a complete hardware maintenance description. The source itself
+records this provenance: the implemented programming interface follows the
+JOSS-II sources, including their interpretation of the drum address as
+16-word groups with unit selection in the upper address bits.
+
+This is therefore a software-derived model of the hardware interface. It is
+sufficient for the JOSS-derived behavior used during DAIMOS bring-up, but
+details that are not visible to JOSS -- exact status-bit semantics, error
+conditions, timing, rotational behavior, and other electrical/controller
+details -- may be incomplete or inaccurate. The implementation should not be
+treated as a verified reproduction of the Type 167 or Type 236 hardware
+without comparison against original hardware documentation.
+
+## Phil Petit calendar clock
+
+File: `PDP10/ka10_pclk.c`
+
+Stanford documentation establishes that Phil Petit's electronic calendar clock
+was already attached to the Stanford system in March 1967, while that system
+was still based on the PDP-6. SAILON-9, P. Petit, "Electronic Clock" (March
+1967), describes an electronic clock providing microseconds, seconds, minutes,
+hours, day, month, and year. The Stanford PDP-6 had entered service in June
+1966; the KA10 PDP-10 was not installed until September 1968.
+
+References:
+
+- Stanford Artificial Intelligence Project, operating-note index, SAILON-9:
+  https://ftpmirror.your.org/pub/misc/bitsavers/pdf/stanford/Stanford_CS_TR_Collection_2025-12-12/OCR/CS-TR-71-209-ocr.pdf
+- SailDart SAIL history/timeline:
+  https://www.saildart.org/simple/index-book-simple.html
+
+The simulator did not implement the PDP-6 clock independently from original
+PDP-6 schematics. This fork enabled and adapted the pre-existing SIMS
+`ka10_pclk.c` Petit-clock model, originally written for the KA10/PDP-10
+simulator. The historical record supports use of the Petit clock on the
+PDP-6, but this audit has not established that the later KA10 interface and
+the original PDP-6 installation were electrically or behaviorally identical.
+The PDP-6 mode should therefore be regarded as historically motivated but not
+hardware-verified.
+
+## PDP-6 line printer
+
+File: `PDP10/kx10_lp.c`
+
+At the fork point the existing `kx10_lp.c` line-printer implementation was
+already linked into the PDP-6 simulator and `lpt_dev` was already present in
+the PDP-6 device table, but `NUM_DEVS_LP` explicitly disabled the device for
+PDP-6 builds. Commit `31fcb5f` changed that configuration so the existing
+line-printer device is instantiated for PDP-6.
+
+No PDP-6-specific line-printer behavior was added or corrected as part of that
+change. The device was enabled for practical use; its fidelity to the actual
+PDP-6-connected line-printer hardware has not been established by this fork.
