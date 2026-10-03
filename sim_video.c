@@ -2168,6 +2168,14 @@ while (vid_active) {
                             vptr = vid_get_event_window (&event, event.user.windowID);
                             break;
                             }
+                        /* A queued redraw for another window was deliberately
+                         * left pending above so it can use that window's
+                         * display context.  Process it as a fresh redraw on
+                         * the next pass through this loop instead of falling
+                         * through to the generic "unexpected user event"
+                         * diagnostic. */
+                        if (event.user.code == EVENT_REDRAW)
+                            continue;
                         }
                     if (event.user.code == EVENT_CURSOR) {
                         vid_update_cursor (vptr, (SDL_Cursor *)(event.user.data1), (t_bool)((size_t)event.user.data2));
