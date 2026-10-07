@@ -149,21 +149,15 @@ extern uint64 SW;        /* switch register */
 #endif
 
 /*
- * number of (real?) microseconds between svc calls
- * used to age display, poll for WS events
- * and delay "data" interrupt
- * (VB10C could steal cycles)
+ * Display aging is maintained on a coarse cadence, but DATAO completion now
+ * uses the actual Type-340 instruction time rather than the former fixed
+ * 100-us delay.  The service routine schedules whichever event is sooner.
  */
-#define DPY_CYCLE_US    50
-
-/*
- * number of DPY_CYCLES to delay int
- * too small and host CPU doesn't run enough!
- */
-#define INT_COUNT       (100/DPY_CYCLE_US)
+#define DPY_AGE_US      50
 
 #define STAT_REG        u3
 #define INT_COUNTDOWN   u4
+#define SVC_DELAY_US    u5
 #define XPOS            us9             /* from LP hit */
 #define YPOS            us10            /* from LP hit */
 
@@ -203,7 +197,7 @@ DIB dpy_dib[] = {
         { DPY_DEVNUM, 1, &dpy_devio, NULL }};
 
 UNIT dpy_unit[] = {
-        { UDATA (&dpy_svc, UNIT_IDLE, DPY_CYCLE_US) }
+        { UDATA (&dpy_svc, UNIT_IDLE, DPY_AGE_US) }
 };
 
 #define UPTR(UNIT) (dpy_unit+(UNIT))
@@ -236,10 +230,25 @@ const char *dpy_description (DEVICE *dptr)
     return "Type 340 Display on Type 344 interface";
 }
 
-/* until it's done just one place! */
-static void dpy_set_int_done(UNIT *uptr)
+static void dpy_schedule(UNIT *uptr)
 {
-    uptr->INT_COUNTDOWN = INT_COUNT;
+    int32 delay;
+
+    delay = DPY_AGE_US;
+    if (uptr->INT_COUNTDOWN > 0 && uptr->INT_COUNTDOWN < delay)
+        delay = uptr->INT_COUNTDOWN;
+    uptr->SVC_DELAY_US = delay;
+    if (sim_is_active(uptr))
+        sim_cancel(uptr);
+    sim_activate_after(uptr, delay);
+}
+
+static void dpy_set_int_done(UNIT *uptr, unsigned int delay_us)
+{
+    if (delay_us == 0U)
+        delay_us = 1U;
+    uptr->INT_COUNTDOWN = (int32)delay_us;
+    dpy_schedule(uptr);
 }
 
 /* update interrupt request */
@@ -257,7 +266,7 @@ static void check_interrupt (UNIT *uptr)
 }
 
 /* return true if display not stopped */
-int dpy_update_status (UNIT *uptr, ty340word status, int done)
+int dpy_update_status (UNIT *uptr, ty340word status, unsigned int done_delay_us)
 {
     int running = !(status & ST340_STOPPED);
 
@@ -265,11 +274,9 @@ int dpy_update_status (UNIT *uptr, ty340word status, int done)
     uptr->STAT_REG &= ~CONI_INT_SPEC;
     uptr->STAT_REG |= status & CONI_INT_SPEC;
 
-    /* data interrupt sent from svc routine, so CPU can run */
-    if (done && running) {
-        /* XXX also set in "rfd" callback: decide! */
-        dpy_set_int_done(uptr);
-    }
+    /* Data interrupt is sent from svc routine so the CPU can run meanwhile. */
+    if (done_delay_us != 0U && running)
+        dpy_set_int_done(uptr, done_delay_us);
     check_interrupt(uptr);
     return running;
 }
@@ -279,6 +286,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
     int         unit = (dev - DPY_DEVNUM) >> 2;
     UNIT        *uptr;
     int32       inst;
+    unsigned int delay_half_us;
 
     if (unit < 0 || unit >= NUM_DEVS_DPY)
         return SCPE_OK;
@@ -286,9 +294,11 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
 
     if (!(uptr->STAT_REG & STAT_VALID)) {
         dpy_update_status(uptr, ty340_status(), 0);
-        sim_activate_after(uptr, DPY_CYCLE_US);
         uptr->STAT_REG |= STAT_VALID;
         uptr->INT_COUNTDOWN = 0;
+        uptr->SVC_DELAY_US = DPY_AGE_US;
+        if (!display_is_blank())
+            dpy_schedule(uptr);
     }
 
     switch (dev & 3) {
@@ -310,7 +320,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
         uptr->STAT_REG &= ~CONO_MASK;
         uptr->STAT_REG |= *data & CONO_MASK;
         if (*data & CONO_INIT)
-            dpy_update_status( uptr, ty340_reset(&dpy_dev), 1);
+            dpy_update_status(uptr, ty340_reset(&dpy_dev), 3U);
         if (*data & CONO_RESUME) {
             /* This bit is not documented in "H-340 Type 340 Precision
                Incremental CRT System".  It is in the MIT file .INFO.;
@@ -320,8 +330,8 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
         }
         sim_debug(DEBUG_CONO, &dpy_dev, "DPY %03o CONO %06o PC=%06o %06o\n",
                   dev, (uint32)*data, PC, uptr->STAT_REG & ~STAT_VALID);
-        if (!sim_is_active(uptr))
-            sim_activate_after(uptr, DPY_CYCLE_US);
+        if (!sim_is_active(uptr) && !display_is_blank())
+            dpy_schedule(uptr);
         break;
 
     case DATAO:
@@ -333,13 +343,16 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
                   dev, *data, PC);
 
         inst = (uint32)LRZ(*data);
+        delay_half_us = ty340_instruction_time_half_us(inst);
         if (dpy_update_status(uptr, ty340_instruction(inst), 0)) {
             /* still running */
             inst = (uint32)RRZ(*data);
-            dpy_update_status(uptr, ty340_instruction(inst), 1);
+            delay_half_us += ty340_instruction_time_half_us(inst);
+            dpy_update_status(uptr, ty340_instruction(inst),
+                (delay_half_us + 1U) / 2U);
         }
-        if (!sim_is_active(uptr))
-            sim_activate_after(uptr, DPY_CYCLE_US);
+        if (!sim_is_active(uptr) && !display_is_blank())
+            dpy_schedule(uptr);
         break;
 
     case DATAI:
@@ -354,15 +367,22 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
 /* Timer service - */
 t_stat dpy_svc (UNIT *uptr)
 {
-    if (!display_is_blank() || uptr->INT_COUNTDOWN > 0)
-        sim_activate_after(uptr, DPY_CYCLE_US); /* requeue! */
+    int32 elapsed;
 
-    display_age(DPY_CYCLE_US, 0);       /* age the display */
+    elapsed = uptr->SVC_DELAY_US > 0 ? uptr->SVC_DELAY_US : DPY_AGE_US;
+    display_age(elapsed, 0);
 
-    if (uptr->INT_COUNTDOWN && --uptr->INT_COUNTDOWN == 0) {
-        uptr->STAT_REG |= CONI_INT_DONE;
-        check_interrupt (uptr);
+    if (uptr->INT_COUNTDOWN > 0) {
+        if (uptr->INT_COUNTDOWN <= elapsed) {
+            uptr->INT_COUNTDOWN = 0;
+            uptr->STAT_REG |= CONI_INT_DONE;
+            check_interrupt(uptr);
+        } else {
+            uptr->INT_COUNTDOWN -= elapsed;
+        }
     }
+    if (!display_is_blank() || uptr->INT_COUNTDOWN > 0)
+        dpy_schedule(uptr);
     return SCPE_OK;
 }
 
@@ -457,7 +477,12 @@ ty340_rfd(void) {                       /* request for data */
 #ifdef TY340_NODISPLAY
     puts("ty340_rfd");
 #endif
-    dpy_set_int_done(dpy_unit);
+    /*
+     * The Type-344/PDP-10 interface transfers two 18-bit display
+     * instructions in one 36-bit DATAO word.  DATAO completion is therefore
+     * scheduled after both halves have executed; the generic Type-340 RFD
+     * callback must not independently arm a second completion delay here.
+     */
 }
 
 void

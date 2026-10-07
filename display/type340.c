@@ -206,6 +206,8 @@ ty340_reset(void *dptr)
     struct type340 *u = UNIT(0);
 #ifndef TY340_NODISPLAY
     display_init(DIS_TYPE340, 1, dptr); /* XXX check return? */
+#else
+    (void)dptr;
 #endif
     u->xpos = u->ypos = 0;
     u->mode = PARAM;
@@ -229,6 +231,9 @@ point(int x, int y, int seq)
     struct type340 *u = UNIT(0);
     int i;
 
+#ifndef TYPE340_POINT
+    (void)seq;
+#endif
 #ifdef TYPE340_POINT
     DEBUGF(("type340 point %d %d %d\r\n", x, y, seq));
 #endif
@@ -850,6 +855,50 @@ character(int n, unsigned char c)
  * returns status word
  * (could return number of microseconds)
  */
+unsigned int
+ty340_instruction_time_half_us(ty340word inst)
+{
+    struct type340 *u = UNIT(0);
+    unsigned int dx;
+    unsigned int dy;
+    unsigned int points;
+
+    /*
+     * Type 340 timing is expressed in half-microseconds so the documented
+     * 1.5-us vector/increment point time can be accumulated exactly across
+     * both 18-bit instructions in one PDP-10 DATAO word.
+     *
+     * Parameter/control transfers take 3 us.  Vector time is 3 us transfer
+     * plus 1.5 us per generated point; incremental mode always contains four
+     * substeps, hence 9 us.  Modes whose timing is not yet modeled retain the
+     * former conservative 100-us delay rather than being made accidentally
+     * faster.
+     */
+    switch (u->mode) {
+    case PARAM:
+    case SLAVE:
+    case SUBR:
+        return 6U;
+
+    case VECTOR:
+        dy = GETFIELD(inst, 3, 9);
+        dx = GETFIELD(inst, 11, 17);
+        points = dx > dy ? dx : dy;
+        return 6U + 3U * points;
+
+    case INCR:
+        return 18U;
+
+    case POINT:
+        return 70U;
+
+    case CHAR:
+    case VCONT:
+    default:
+        return 200U;
+    }
+}
+
 ty340word
 ty340_instruction(ty340word inst)
 {
