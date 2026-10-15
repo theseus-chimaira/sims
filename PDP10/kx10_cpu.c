@@ -97,6 +97,14 @@
 #include "kx10_defs.h"
 #include "sim_timer.h"
 
+/* PDP-6 profiler: count dispatched opcodes, including XCT targets.
+ * Counts are monotonic since reset/deposit and do not estimate CPU time.
+ * 512 counters are exposed through the CPU OPCOUNT register array.
+ */
+#if PDP6
+static uint64 pdp6_opcode_count[512];
+#endif
+
 #define HIST_PC         0x40000000
 #define HIST_PC2        0x80000000
 #define HIST_PCE        0x20000000
@@ -442,6 +450,9 @@ UNIT cpu_unit[] = { { UDATA (&rtc_srv,
                    };
 
 REG cpu_reg[] = {
+#if PDP6
+    { BRDATA (OPCOUNT, pdp6_opcode_count, 10, 64, 512) },
+#endif
     { ORDATAD (PC, PC, 18, "Program Counter") },
     { ORDATAD (FLAGS, FLAGS, 18, "Flags") },
     { ORDATAD (FM0, FM[00], 36, "Fast Memory"), REG_VMIO },       /* addr in memory */
@@ -4633,6 +4644,9 @@ fetch:
 
 no_fetch:
        IR = (MB >> 27) & 0777;
+#if PDP6
+       ++pdp6_opcode_count[IR];
+#endif
        AC = (MB >> 23) & 017;
        AD = MB;  /* Save for historical sake */
        IA = AB;
