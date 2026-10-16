@@ -427,7 +427,10 @@ ifeq (${WIN32},)  #*nix Environments (&& cygwin)
     else
       ifeq (Linux,$(OSTYPE))
         ifeq (Android,$(shell uname -o))
-          OS_CCDEFS += -D__ANDROID_API__=$(shell getprop ro.build.version.sdk) -DSIM_BUILD_OS=" On Android Version $(shell getprop ro.build.version.release)"
+          ifeq (,$(shell printf "" | ${GCC} -dM -E -x c - 2>/dev/null | grep -F "__ANDROID_API__"))
+            OS_CCDEFS += -D__ANDROID_API__=$(shell getprop ro.build.version.sdk)
+          endif
+          OS_CCDEFS += -DSIM_BUILD_OS=" On Android Version $(shell getprop ro.build.version.release)"
         endif
         ifneq (lib,$(findstring lib,$(UNSUPPORTED_BUILD)))
           ifeq (Android,$(shell uname -o))
@@ -1531,6 +1534,7 @@ PDP6 = ${PDP6D}/kx10_cpu.c ${PDP6D}/kx10_sys.c ${PDP6D}/kx10_cty.c \
 	${PDP6D}/pdp6_mtc.c ${PDP6D}/pdp6_dsk.c ${PDP6D}/pdp6_dcs.c ${PDP6D}/ka10_pclk.c \
 	${PDP6D}/kx10_dpy.c ${PDP6D}/pdp6_slave.c ${PDP6D}/pdp6_ge.c ${PDP6D}/pdp6_drum.c \
 	${DISPLAYL} ${DISPLAY340}
+PDP6_LDFLAGS += -lm
 PDP6_OPT = -DPDP6=1 -DUSE_INT64 -I ${PDP6D} -DUSE_SIM_CARD ${DISPLAY_OPT} ${PDP6_DISPLAY_OPT} ${AIO_CCDEFS}
 ifneq (${PANDA_LIGHTS},)
 # ONLY for Panda display.

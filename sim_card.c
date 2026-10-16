@@ -1261,10 +1261,16 @@ sim_card_attach(UNIT * uptr, CONST char *cptr)
             strchr (cptr, ',')) {       /* Restoring Attach list of files? */
         char tbuf[10*CBUFSIZE];
         char *tptr = tbuf;
+        char *context = NULL;
+#if defined(_MSC_VER)
+#define sim_card_token_v1 strtok_s
+#else
+#define sim_card_token_v1 strtok_r
+#endif
         int32 saved_switches = sim_switches;
 
         strlcpy (tbuf, cptr, sizeof(tbuf));
-        tptr = strtok (tptr, ",");
+        tptr = sim_card_token_v1 (tptr, ",", &context);
         while (tptr) {
             cptr = tptr;
             while (isspace(*cptr))
@@ -1272,7 +1278,7 @@ sim_card_attach(UNIT * uptr, CONST char *cptr)
             r = sim_card_attach (uptr, cptr);
             if (r != SCPE_OK)
                 return r;
-            tptr = strtok (NULL, ",");
+            tptr = sim_card_token_v1 (NULL, ",", &context);
             sim_switches = saved_switches & ~SWMASK('F');
             sim_switches |= SWMASK('S');
         }
