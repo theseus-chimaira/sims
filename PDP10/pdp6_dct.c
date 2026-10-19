@@ -73,6 +73,8 @@ DIB                 dct_dib[] = {
 REG                 dct_reg[] = {
     {BRDATA(BUFF, dct_buf, 16, 36, NUM_DEVS_DCT), REG_HRO},
     {BRDATA(ACC, dct_acc, 16, 36, NUM_DEVS_DCT), REG_HRO},
+    /* Read-only channel handshake state for stalled-transfer diagnosis. */
+    {URDATA(STATUS, dct_unit[0].u3, 8, 18, 0, NUM_DEVS_DCT, PV_LEFT | REG_RO)},
     {0}
 };
 

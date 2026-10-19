@@ -450,10 +450,14 @@ UNIT cpu_unit[] = { { UDATA (&rtc_srv,
                    };
 
 REG cpu_reg[] = {
+    /* The SIMH GO/RUN address path uses the first CPU register as PC.
+     * Keep optional profiling arrays after PC: otherwise GO 020 writes
+     * the first OPCOUNT element and silently starts from the wrong PC.
+     */
+    { ORDATAD (PC, PC, 18, "Program Counter") },
 #if PDP6
     { BRDATA (OPCOUNT, pdp6_opcode_count, 10, 64, 512) },
 #endif
-    { ORDATAD (PC, PC, 18, "Program Counter") },
     { ORDATAD (FLAGS, FLAGS, 18, "Flags") },
     { ORDATAD (FM0, FM[00], 36, "Fast Memory"), REG_VMIO },       /* addr in memory */
     { ORDATA (FM1, FM[01], 36), REG_VMIO },                       /* modified at exit */

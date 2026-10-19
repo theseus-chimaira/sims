@@ -237,6 +237,10 @@
 int32 dtc_dtsa = 0;                           /* status A */
 int32 dtc_dtsb = 0;                           /* status B */
 int   dtc_dct = 0;
+/* Only the selected Type-551 transport may operate the shared DCT/status.
+ * Other drives may keep moving through blocks or reach physical end zones.
+ */
+static int dtc_selected_unit = -1;
 
 t_stat         dtc_devio(uint32 dev, uint64 *data);
 t_stat         dtc_svc (UNIT *uptr);
@@ -286,6 +290,12 @@ UNIT dtc_unit[] = {
 
 REG dtc_reg[] = {
     { ORDATA (DTSA, dtc_dtsa, 18) },
+    { ORDATA (DTSB, dtc_dtsb, 18) },
+    { DRDATA (SELUNIT, dtc_selected_unit, 32), REG_RO },
+    { URDATA (CMD, dtc_unit[0].u3, 8, 18, 0,
+              DTC_NUMDR, PV_LEFT | REG_RO) },
+    { URDATA (DSTATE, dtc_unit[0].u5, 8, 32, 0,
+              DTC_NUMDR, PV_LEFT | REG_RO) },
     { URDATA (POS, dtc_unit[0].pos, 10, T_ADDR_W, 0,
               DTC_NUMDR, PV_LEFT | REG_RO) },
     { NULL }
@@ -344,7 +354,8 @@ dtc_devio(uint32 dev, uint64 *data) {
      case CONO:
           clr_interrupt(dev);
           /* Copy over command and priority */
-          dtc_dtsa = *data & (DTC_FLAG_PIA|(DTC_M_FNC << DTC_V_FNC)|DTC_TIME|DTC_RVDRV| \
+          dtc_dtsa = *data & (DTC_FLAG_PIA|(DTC_M_UNIT << DTC_V_UNIT)| \
+                         (DTC_M_FNC << DTC_V_FNC)|DTC_TIME|DTC_RVDRV| \
                          DTC_START|DTC_JDONE|DTC_ETF|DTC_SEL);
           dtc_dtsb = 0;
           sim_debug(DEBUG_CONO, &dtc_dev, "DTC %03o CONO %06o PC=%o\n",
@@ -365,10 +376,12 @@ dtc_devio(uint32 dev, uint64 *data) {
           /* Check if we are selecting a drive or not */
           if (*data & DTC_SEL) {
               if ((dtc_unit[i].flags & UNIT_ATT) == 0) {
+                  dtc_selected_unit = -1;
                   dtc_dtsb |= DTB_ILL;
                   set_interrupt(DTC_DEVNUM, dtc_dtsa);
                   return SCPE_OK;
               }
+              dtc_selected_unit = i;
               if ((*data & DTC_START) != 0) {
                    /* Start the unit if not already running */
                    dtc_unit[i].CMD = (dtc_dtsa & 0377707);
@@ -382,6 +395,7 @@ dtc_devio(uint32 dev, uint64 *data) {
               }
               dtc_dtsb |= DTB_REQ;
           } else {
+              dtc_selected_unit = -1;
               /* If not selecting, but delaying, give it to a unit to handle */
               if (dtc_dtsb & DTB_DLY) {
                    dtc_unit[i].CMD = (dtc_dtsa & 0007007);
@@ -436,6 +450,13 @@ dtc_svc (UNIT *uptr)
    int        u = uptr-dtc_unit;
    int        blk;
    int        off;
+   /* Only the selected transport owns the Type-551 status and Type-136.
+    * A nonselected unit still advances its physical tape position, but its
+    * marks and end zones must never affect the active data-channel request.
+    */
+   int        selected = (u == dtc_selected_unit);
+   int32      inactive_status = 0;
+   int32     *status = selected ? &dtc_dtsb : &inactive_status;
     /*
      * Check if in motion or stopping.
      */
@@ -459,21 +480,21 @@ dtc_svc (UNIT *uptr)
                 if (blk <= 01100)
                     blk++;
             }
-            dtc_dtsb |= DTB_DONE;
+            (*status) |= DTB_DONE;
             if ((uptr->CMD & DTC_JDONE) != 0)
-                set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
 
             /* If we were delaying, all done, notify CPU if it asked to know */
-            if ((dtc_dtsb & DTB_DLY) != 0) {
+            if (((*status) & DTB_DLY) != 0) {
                 uptr->DELAY = 0;
-                dtc_dtsb |= DTB_TIME;
-                dtc_dtsb &= ~DTB_DLY;
+                (*status) |= DTB_TIME;
+                (*status) &= ~DTB_DLY;
                 if(uptr->CMD & DTC_TIME)
-                   set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                   if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
             }
 
-            dtc_dtsb &= ~(DTB_REQ|DTB_ACT);
-            dtc_dtsb |= DTB_NULL;
+            (*status) &= ~(DTB_REQ|DTB_ACT);
+            (*status) |= DTB_NULL;
             uptr->CMD &= 077077;
             uptr->DSTATE |= (blk << DTC_V_BLK);
             return SCPE_OK;
@@ -504,18 +525,18 @@ dtc_svc (UNIT *uptr)
              case DTC_FEND:                           /* Tape in endzone */
                   /* Set stop */
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o rev forward end\n", u);
-                  dtc_dtsb |= DTB_EOT|DTB_NULL;
-                  dtc_dtsb &= ~(DTB_REQ|DTB_ACT);
+                  (*status) |= DTB_EOT|DTB_NULL;
+                  (*status) &= ~(DTB_REQ|DTB_ACT);
                   if (uptr->CMD & DTC_ETF)
-                      set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                      if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                   uptr->CMD |= DTC_FNC_STOP;
                   sim_activate(uptr, DT_WRDTIM*10);
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_DLY) != 0) {
                       uptr->DELAY = 0;
-                      dtc_dtsb &= ~DTB_DLY;
-                      dtc_dtsb |= DTB_TIME;
+                      (*status) &= ~DTB_DLY;
+                      (*status) |= DTB_TIME;
                       if (uptr->CMD & DTC_TIME)
-                          set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                          if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                   }
                   break;
 
@@ -531,16 +552,16 @@ dtc_svc (UNIT *uptr)
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o rev forward block\n", u);
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_RALL:
-                       if (dtc_dtsb & DTB_ACT) {
+                       if ((*status) & DTB_ACT) {
                            if (dct_write(dtc_dct, &data, 6) == 0)
-                               dtc_dtsb |= DTB_DONE;
+                               (*status) |= DTB_DONE;
                        }
                        break;
                   case FNC_READ:
                   case FNC_WRIT:
-                       if (dtc_dtsb & DTB_REQ) {
-                           dtc_dtsb &= ~DTB_REQ;
-                           dtc_dtsb |= DTB_ACT;
+                       if ((*status) & DTB_REQ) {
+                           (*status) &= ~DTB_REQ;
+                           (*status) |= DTB_ACT;
                        }
                        break;
                   case FNC_SRCH:
@@ -548,10 +569,10 @@ dtc_svc (UNIT *uptr)
                        break;
                   case FNC_WALL:
                   case FNC_WBLK:
-                       (void)dct_read(dtc_dct, &data, 6);
+                       if (selected) (void)dct_read(dtc_dct, &data, 6);
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   }
                   break;
@@ -560,23 +581,23 @@ dtc_svc (UNIT *uptr)
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o rev forward check\n", u);
                   sim_activate(uptr,DT_WRDTIM*2);
                   /* Disconnect if DCT no longer attached */
-                  if ((dtc_dtsb & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
-                      dtc_dtsb |= DTB_DONE;
+                  if (((*status) & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
+                      (*status) |= DTB_DONE;
                   uptr->DELAY -= 2;
                   word = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                   uptr->DSTATE = DTC_FBLK|(word << DTC_V_BLK) | (uptr->DSTATE & DTC_MOTMASK);
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_RALL:
-                       if (dtc_dtsb & DTB_ACT) {
+                       if ((*status) & DTB_ACT) {
                            blk = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                            if (blk < 075)
                                data = 0721200220107LL;
@@ -585,11 +606,11 @@ dtc_svc (UNIT *uptr)
                            else
                                data = 0577777777777LL;
                            if (dct_write(dtc_dct, &data, 6) == 0)
-                              dtc_dtsb |= DTB_DONE;
+                              (*status) |= DTB_DONE;
                        }
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   case FNC_SRCH:
                   case FNC_WRIT:
@@ -615,7 +636,7 @@ dtc_svc (UNIT *uptr)
                       uptr->DSTATE &= ~(DTC_M_WORD << DTC_V_WORD);
                       uptr->DSTATE |= (word - 1) << DTC_V_WORD;
                   }
-                  if ((dtc_dtsb & DTB_DLY) || (dtc_dtsb & DTB_ACT) == 0)
+                  if (((*status) & DTB_DLY) || ((*status) & DTB_ACT) == 0)
                       break;
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_MOVE:
@@ -623,23 +644,23 @@ dtc_svc (UNIT *uptr)
                   case FNC_WBLK:
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   case FNC_RALL:
                   case FNC_READ:
                        data = ((uint64)fbuf[off]) << 18;
                        data |= ((uint64)fbuf[off+1]);
                        if (dct_write(dtc_dct, &data, 6) == 0) {
-                           dtc_dtsb &= ~DTB_ACT;
-                           dtc_dtsb |= DTB_INCBLK|DTB_DONE;
+                           (*status) &= ~DTB_ACT;
+                           (*status) |= DTB_INCBLK|DTB_DONE;
                        }
                        break;
 
                   case FNC_WRIT:
                   case FNC_WALL:
                        if (dct_read(dtc_dct, &data, 6) == 0) {
-                           dtc_dtsb &= ~DTB_ACT;
-                           dtc_dtsb |= DTB_INCBLK|DTB_DONE;
+                           (*status) &= ~DTB_ACT;
+                           (*status) |= DTB_INCBLK|DTB_DONE;
                        }
                        fbuf[off] = (data >> 18) & RMASK;
                        fbuf[off+1] = data & RMASK;
@@ -656,18 +677,18 @@ dtc_svc (UNIT *uptr)
                   sim_activate(uptr,DT_WRDTIM*2);
                   uptr->DELAY -= 2;
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o rev reverse check %06o %06o\n",
-                              u, uptr->CMD, dtc_dtsb);
+                              u, uptr->CMD, (*status));
                   word = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                   uptr->DSTATE = DTC_BLOCK|(word << DTC_V_BLK)|(DTC_M_WORD << DTC_V_WORD) |
                                 (uptr->DSTATE & DTC_MOTMASK);
-                  if ((dtc_dtsb & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
-                      dtc_dtsb |= DTB_DONE;
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
+                      (*status) |= DTB_DONE;
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
@@ -679,13 +700,13 @@ dtc_svc (UNIT *uptr)
                   case FNC_MOVE:
                   case FNC_READ:
                   case FNC_WBLK:
-                       if (dtc_dtsb & DTB_REQ) {
-                           dtc_dtsb |= DTB_ACT;
-                           dtc_dtsb &= ~(DTB_REQ|DTB_NULL);
+                       if ((*status) & DTB_REQ) {
+                           (*status) |= DTB_ACT;
+                           (*status) &= ~(DTB_REQ|DTB_NULL);
                        }
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   }
                   break;
@@ -698,13 +719,13 @@ dtc_svc (UNIT *uptr)
                   uptr->DSTATE = DTC_RCHK|(word << DTC_V_BLK)|(DTC_M_WORD << DTC_V_WORD) |
                            (uptr->DSTATE & DTC_MOTMASK);
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o rev reverse block %04o\n", u, word);
-                  dtc_dtsb &= ~DTB_EOT;
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  (*status) &= ~DTB_EOT;
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
@@ -715,27 +736,27 @@ dtc_svc (UNIT *uptr)
                   case FNC_WRIT:
                        break;
                   case FNC_RALL:
-                       if (dtc_dtsb & DTB_ACT && dct_write(dtc_dct, &data, 6) == 0)
-                           dtc_dtsb |= DTB_DONE;
+                       if ((*status) & DTB_ACT && dct_write(dtc_dct, &data, 6) == 0)
+                           (*status) |= DTB_DONE;
                        break;
                   case FNC_SRCH:
-                       if (dtc_dtsb & DTB_ACT) {
+                       if ((*status) & DTB_ACT) {
                            (void)dct_write(dtc_dct, &data, 6);
-                           dtc_dtsb |= DTB_DONE;
+                           (*status) |= DTB_DONE;
                        }
                        break;
                   case FNC_WALL:
                   case FNC_WBLK:
-                       if (dtc_dtsb & DTB_ACT) {
-                           (void)dct_read(dtc_dct, &data, 6);
-                           dtc_dtsb |= DTB_DONE;
+                       if ((*status) & DTB_ACT) {
+                           if (selected) (void)dct_read(dtc_dct, &data, 6);
+                           (*status) |= DTB_DONE;
                        }
                        break;
                   }
-                  if (dtc_dtsb & DTB_REQ) {
+                  if ((*status) & DTB_REQ) {
                       sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o activate\n", u);
-                      dtc_dtsb &= ~(DTB_REQ|DTB_NULL);
-                      dtc_dtsb |= DTB_ACT;
+                      (*status) &= ~(DTB_REQ|DTB_NULL);
+                      (*status) |= DTB_ACT;
                   }
                   break;
 
@@ -745,7 +766,7 @@ dtc_svc (UNIT *uptr)
                   word = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                   word--;
                   uptr->DSTATE = DTC_RBLK|(word << DTC_V_BLK) | (uptr->DSTATE & DTC_MOTMASK);
-                  dtc_dtsb &= ~DTB_EOT;
+                  (*status) &= ~DTB_EOT;
                   break;
              }
          } else {
@@ -762,49 +783,49 @@ dtc_svc (UNIT *uptr)
              case DTC_FBLK:                           /* In forward block number */
                   uptr->DELAY -= 2;
                   sim_activate(uptr,DT_WRDTIM*2);
-                  dtc_dtsb &= ~DTB_EOT;
+                  (*status) &= ~DTB_EOT;
                   word = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                   uptr->DSTATE = DTC_FCHK|(word << DTC_V_BLK) | (uptr->DSTATE & DTC_MOTMASK);
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o forward block %04o %06o\n",
-                             u, word, dtc_dtsb);
+                             u, word, (*status));
                   data = (uint64)word;
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
-                  if ((dtc_dtsb & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
-                      dtc_dtsb |= DTB_DONE;
+                  if (((*status) & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
+                      (*status) |= DTB_DONE;
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_SRCH:
-                       if (dtc_dtsb & DTB_ACT) {
+                       if ((*status) & DTB_ACT) {
                            (void)dct_write(dtc_dct, &data, 6);
-                           dtc_dtsb |= DTB_DONE;
+                           (*status) |= DTB_DONE;
                        }
                        break;
                   case FNC_RALL:
-                       if ((dtc_dtsb & DTB_ACT) != 0 && dct_write(dtc_dct, &data, 6) == 0)
-                           dtc_dtsb |= DTB_DONE;
+                       if (((*status) & DTB_ACT) != 0 && dct_write(dtc_dct, &data, 6) == 0)
+                           (*status) |= DTB_DONE;
                        break;
                   case FNC_READ:
                   case FNC_WRIT:
-                       if (dtc_dtsb & DTB_REQ) {
-                           dtc_dtsb &= ~(DTB_REQ|DTB_NULL);
-                           dtc_dtsb |= DTB_ACT;
+                       if ((*status) & DTB_REQ) {
+                           (*status) &= ~(DTB_REQ|DTB_NULL);
+                           (*status) |= DTB_ACT;
                        }
                        break;
                   case FNC_MOVE:
                        break;
                   case FNC_WALL:
                   case FNC_WBLK:
-                       (void)dct_read(dtc_dct, &data, 6);
+                       if (selected) (void)dct_read(dtc_dct, &data, 6);
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   }
                   break;
@@ -812,23 +833,23 @@ dtc_svc (UNIT *uptr)
              case DTC_FCHK:                           /* In forward checksum */
                   uptr->DELAY -= 2;
                   sim_activate(uptr,DT_WRDTIM*2);
-                  sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o forward check %06o\n", u, dtc_dtsb);
+                  sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o forward check %06o\n", u, (*status));
                   uptr->DSTATE &= ~7;
                   uptr->DSTATE |= DTC_BLOCK;              /* Move to datablock */
-                  if ((dtc_dtsb & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
-                      dtc_dtsb |= DTB_DONE;
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
+                      (*status) |= DTB_DONE;
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_RALL:
-                       if (dtc_dtsb & DTB_ACT) {
+                       if ((*status) & DTB_ACT) {
                            blk = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                            if (blk < 075)
                                data = 0721200220107LL;
@@ -837,20 +858,20 @@ dtc_svc (UNIT *uptr)
                            else
                                data = 0577777777777LL;
                            if (dct_write(dtc_dct, &data, 6) == 0)
-                              dtc_dtsb |= DTB_DONE;
+                              (*status) |= DTB_DONE;
                        }
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   case FNC_SRCH:
                   case FNC_WRIT:
                   case FNC_WALL:
                   case FNC_READ:
                   case FNC_WBLK:
-                       if (dtc_dtsb & DTB_REQ) {
-                           dtc_dtsb &= ~(DTB_REQ|DTB_NULL);
-                           dtc_dtsb |= DTB_ACT;
+                       if ((*status) & DTB_REQ) {
+                           (*status) &= ~(DTB_REQ|DTB_NULL);
+                           (*status) |= DTB_ACT;
                        }
                        break;
                   case FNC_MOVE:
@@ -872,9 +893,9 @@ dtc_svc (UNIT *uptr)
                       uptr->DSTATE &= ~(DTC_M_WORD << DTC_V_WORD);
                       uptr->DSTATE |= (word + 1) << DTC_V_WORD;
                   }
-                  if (dtc_dtsb & DTB_DLY)
+                  if ((*status) & DTB_DLY)
                       break;
-                  if ((dtc_dtsb & DTB_ACT) == 0)
+                  if (((*status) & DTB_ACT) == 0)
                       break;
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_MOVE:
@@ -887,18 +908,18 @@ dtc_svc (UNIT *uptr)
                        data = ((uint64)fbuf[off]) << 18;
                        data |= (uint64)fbuf[off+1];
                        if (dct_write(dtc_dct, &data, 6) == 0)
-                          dtc_dtsb |= DTB_DONE;
+                          (*status) |= DTB_DONE;
                        break;
                   case FNC_WRIT:
                        if (dct_read(dtc_dct, &data, 6) == 0)
-                          dtc_dtsb |= DTB_DONE;
+                          (*status) |= DTB_DONE;
                        fbuf[off] = (data >> 18) & RMASK;
                        fbuf[off+1] = data & RMASK;
                        uptr->WRITTEN = 1;
                        uptr->hwmark = uptr->capac;
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   }
                   sim_debug(DEBUG_DETAIL, &dtc_dev,
@@ -912,31 +933,31 @@ dtc_svc (UNIT *uptr)
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o reverse check\n", u);
                   uptr->DSTATE &= ~(DTC_M_WORD << DTC_V_WORD) | 7;
                   uptr->DSTATE |= DTC_RBLK;               /* Move to end of block */
-                  if ((dtc_dtsb & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
-                      dtc_dtsb |= DTB_DONE;
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
+                      (*status) |= DTB_DONE;
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_RALL:
-                       if (dtc_dtsb & DTB_ACT) {
+                       if ((*status) & DTB_ACT) {
                            blk = (uptr->DSTATE >> DTC_V_BLK) & DTC_M_BLK;
                            if (blk < 073)
                                data = 0721200220107LL;
                            else
                                data = 0721200233107LL;
                            if (dct_write(dtc_dct, &data, 6) == 0)
-                               dtc_dtsb |= DTB_DONE;
+                               (*status) |= DTB_DONE;
                        }
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
+                       (*status) |= DTB_ILL;
                        break;
                   case FNC_SRCH:
                   case FNC_WRIT:
@@ -960,27 +981,27 @@ dtc_svc (UNIT *uptr)
                        uptr->DSTATE = DTC_FBLK|(word << DTC_V_BLK)|(uptr->DSTATE & DTC_MOTMASK);
                   }
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o reverse block %o\n", u, word);
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
+                  if (((*status) & DTB_DLY) != 0) {
                       if (uptr->DELAY < 0) {
-                          dtc_dtsb &= ~DTB_DLY;
-                          dtc_dtsb |= DTB_TIME;
+                          (*status) &= ~DTB_DLY;
+                          (*status) |= DTB_TIME;
                           if (uptr->CMD & DTC_TIME)
-                              set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                              if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                       }
                       break;
                   }
                   /* Check if DCC has disconnected */
-                  if ((dtc_dtsb & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
-                      dtc_dtsb |= DTB_DONE;
+                  if (((*status) & DTB_ACT) != 0 && dct_is_connect(dtc_dct) == 0)
+                      (*status) |= DTB_DONE;
                   /* Check if request pending */
-                  if (dtc_dtsb & DTB_REQ) {
-                      dtc_dtsb &= ~(DTB_REQ|DTB_NULL);
-                      dtc_dtsb |= DTB_ACT;
+                  if ((*status) & DTB_REQ) {
+                      (*status) &= ~(DTB_REQ|DTB_NULL);
+                      (*status) |= DTB_ACT;
                   }
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_RALL:
-                       if ((dtc_dtsb & DTB_ACT) != 0 && dct_write(dtc_dct, &data, 6) == 0)
-                           dtc_dtsb |= DTB_DONE;
+                       if (((*status) & DTB_ACT) != 0 && dct_write(dtc_dct, &data, 6) == 0)
+                           (*status) |= DTB_DONE;
                        break;
                   case FNC_SRCH:
                   case FNC_MOVE:
@@ -990,13 +1011,13 @@ dtc_svc (UNIT *uptr)
                   case FNC_WBLK:
                        break;
                   case FNC_WMRK:
-                       dtc_dtsb |= DTB_ILL;
-                       set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                       (*status) |= DTB_ILL;
+                       if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                        break;
                   }
-                  if (dtc_dtsb & DTB_REQ) {
-                      dtc_dtsb &= ~(DTB_REQ|DTB_NULL);
-                      dtc_dtsb |= DTB_ACT;
+                  if ((*status) & DTB_REQ) {
+                      (*status) &= ~(DTB_REQ|DTB_NULL);
+                      (*status) |= DTB_ACT;
                   }
                   break;
 
@@ -1004,33 +1025,33 @@ dtc_svc (UNIT *uptr)
                   /* Set stop */
                   uptr->CMD |= DTC_FNC_STOP;
                   sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o reverse end\n", u);
-                  dtc_dtsb |= DTB_EOT;
+                  (*status) |= DTB_EOT;
                   if (dtc_dtsa & DTC_ETF)
-                      set_interrupt(DTC_DEVNUM, dtc_dtsa);
-                  if ((dtc_dtsb & DTB_DLY) != 0) {
-                      dtc_dtsb &= ~DTB_DLY;
-                      dtc_dtsb |= DTB_TIME;
+                      if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                  if (((*status) & DTB_DLY) != 0) {
+                      (*status) &= ~DTB_DLY;
+                      (*status) |= DTB_TIME;
                       if (uptr->CMD & DTC_TIME)
-                          set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                          if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                   }
                   sim_activate(uptr, DT_WRDTIM*10);
                   break;
              }
          }
 
-         if ((dtc_dtsb & DTB_DONE) != 0) {
+         if (((*status) & DTB_DONE) != 0) {
              if ((uptr->CMD & DTC_JDONE) != 0) {
-                 set_interrupt(DTC_DEVNUM, dtc_dtsa);
+                 if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
                  sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o post done\n", u);
              }
 
-             dtc_dtsb &= ~(DTB_REQ|DTB_ACT);
-             dtc_dtsb |= DTB_NULL;
+             (*status) &= ~(DTB_REQ|DTB_ACT);
+             (*status) |= DTB_NULL;
              uptr->CMD &= 077077;
          }
 
-         if ((dtc_dtsb & (DTB_ILL|DTB_PAR|DTB_EOT)) != 0) {
-             set_interrupt(DTC_DEVNUM, dtc_dtsa);
+         if (((*status) & (DTB_ILL|DTB_PAR|DTB_EOT)) != 0) {
+             if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
              uptr->CMD = DTC_FNC_STOP;
          }
 
@@ -1038,12 +1059,12 @@ dtc_svc (UNIT *uptr)
     } else if (uptr->CMD & DTC_START) {
         /* Start up delay */
         sim_activate(uptr, DT_WRDTIM*10);
-        if ((dtc_dtsb & DTB_DLY) != 0) {
+        if (((*status) & DTB_DLY) != 0) {
             uptr->DELAY = 0;
-            dtc_dtsb |= DTB_TIME;
-            dtc_dtsb &= ~DTB_DLY;
+            (*status) |= DTB_TIME;
+            (*status) &= ~DTB_DLY;
             if(uptr->CMD & DTC_TIME)
-               set_interrupt(DTC_DEVNUM, dtc_dtsa);
+               if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
         }
 
         uptr->DSTATE |=  DTC_MOT;
@@ -1054,12 +1075,12 @@ dtc_svc (UNIT *uptr)
         }
         sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o start %06o\n", u, uptr->CMD);
         return SCPE_OK;
-    } else if ((dtc_dtsb & DTB_DLY) != 0) {
+    } else if (((*status) & DTB_DLY) != 0) {
         uptr->DELAY = 0;
-        dtc_dtsb |= DTB_TIME;
-        dtc_dtsb &= ~DTB_DLY;
+        (*status) |= DTB_TIME;
+        (*status) &= ~DTB_DLY;
         if(dtc_dtsa & DTC_TIME)
-           set_interrupt(DTC_DEVNUM, dtc_dtsa);
+           if (selected) set_interrupt(DTC_DEVNUM, dtc_dtsa);
         sim_debug(DEBUG_DETAIL, &dtc_dev, "DTC %o delay over %06o\n", u, dtc_dtsa);
     }
     return SCPE_OK;
@@ -1135,6 +1156,7 @@ dtc_reset (DEVICE *dptr)
     int   i;
 
     dtc_dtsb = dtc_dtsa = 0;                                    /* clear status */
+    dtc_selected_unit = -1;
     for (i = 0; i < DTC_NUMDR; i++) {
        if ((dtc_unit[i].DSTATE & DTC_MOT) != 0)
            dtc_unit[i].CMD |= DTC_FNC_STOP;
