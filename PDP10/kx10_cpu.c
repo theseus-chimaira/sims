@@ -4462,6 +4462,10 @@ int nlzero(uint64 w) {
 t_stat sim_instr (void)
 {
 t_stat reason;
+#if PDP6
+/* Ctrl-E is asynchronous: do not abandon a PDP-6 UUO/PI microcycle. */
+t_stat pending_console_stop = SCPE_OK;
+#endif
 int     pi_rq;                   /* Interrupt request */
 int     pi_ov;                   /* Overflow during PI cycle */
 int     ind;                     /* Indirect bit */
@@ -4523,15 +4527,42 @@ if ((reason = build_dev_tab ()) != SCPE_OK)            /* build, chk dib_tab */
    watch_stop = 0;
 
    while ( reason == 0) {                                /* loop until ABORT */
+#if PDP6
+      /* sim_instr() is re-entered after CONTINUE and resets its local
+       * microcycle variables. A Ctrl-E stop in an indirect/UUO/PI cycle
+       * would resume at the wrong fetch phase and execute nonsense.
+       * Finish the current instruction before returning a console stop. */
+      if (pending_console_stop != SCPE_OK && f_load_pc && f_inst_fetch &&
+          !uuo_cycle && !pi_cycle && !xct_flag) {
+          fprintf(stderr, "PDP6_V106_DEFERRED_STOP PC=%06o FL=%d IF=%d UUO=%d PI=%d XCT=%d\n",
+                  (unsigned)PC, f_load_pc, f_inst_fetch, uuo_cycle, pi_cycle, xct_flag);
+          RUN = 0;
+          return pending_console_stop;
+      }
+#endif
       AIO_CHECK_EVENT;                                   /* queue async events */
       if (sim_interval <= 0) {                           /* check clock queue */
          if ((reason = sim_process_event()) != SCPE_OK) {/* error?  stop sim */
-#if ITS
-             if (QITS)
-                 load_quantum();
+#if PDP6
+             if (reason == SCPE_STOP && (!f_load_pc || !f_inst_fetch ||
+                 uuo_cycle || pi_cycle || xct_flag)) {
+                 pending_console_stop = reason;
+                 reason = SCPE_OK;
+             } else
 #endif
-             RUN = 0;
-             return reason;
+             {
+#if ITS
+                 if (QITS)
+                     load_quantum();
+#endif
+#if PDP6
+                 if (reason == SCPE_STOP)
+                     fprintf(stderr, "PDP6_V106_IMMEDIATE_STOP PC=%06o FL=%d IF=%d UUO=%d PI=%d XCT=%d\n",
+                             (unsigned)PC, f_load_pc, f_inst_fetch, uuo_cycle, pi_cycle, xct_flag);
+#endif
+                 RUN = 0;
+                 return reason;
+             }
          }
     }
 
@@ -4827,6 +4858,12 @@ in_loop:
          AIO_CHECK_EVENT;                                   /* queue async events */
          if (--sim_interval <= 0) {
               if ((reason = sim_process_event()) != SCPE_OK) {
+#if PDP6
+                  if (reason == SCPE_STOP) {
+                      pending_console_stop = reason;
+                      reason = SCPE_OK;
+                  } else
+#endif
                   return reason;
               }
          }
@@ -6939,6 +6976,98 @@ fadd:
 
               /* Get exponent */
               SC = GET_EXPO(AR);
+#if PDP6
+              if (IR & 04) {
+                  /* Type 166 rounded add/subtract, DEC FDAS and EMNF.
+                   * The real adder aligns a 36-bit AR and 36-bit MQ,
+                   * then normalizes the same registers.  The generic
+                   * extended-precision path below cannot reproduce the
+                   * NRT5 -> NRT5A -> NRT0 repeat after rounding: its
+                   * low fraction bits have not undergone the physical
+                   * AR/MQ shifts.  Use the actual 166 register widths.
+                   */
+                  t_uint64 hw_ar, hw_mq, hw_mb, old_ar, old_mq;
+                  int hw_sc, shift_count, nrf3, do_round;
+
+                  hw_sc = SC;
+                  hw_ar = (BR & MANT) |
+                          ((BR & SMASK) ? (FMASK & ~MANT) : 0);
+                  hw_mb = (AR & MANT) |
+                          ((AR & SMASK) ? (FMASK & ~MANT) : 0);
+                  hw_mq = 0;
+                  shift_count = (SCAD & 0400) ? 01000 - SCAD : 0;
+                  while (shift_count-- > 0) {
+                      old_ar = hw_ar;
+                      hw_ar = (old_ar >> 1) | (old_ar & SMASK);
+                      /* MQ0 does not shift into MQ1: see DEC 6-7. */
+                      hw_mq = ((hw_mq >> 1) & 0177777777777LL) |
+                              (old_ar & SMASK) |
+                              ((old_ar & 1) << 34);
+                  }
+                  hw_ar = (hw_ar + hw_mb) & FMASK;
+                  nrf3 = 0;
+
+                  /* EMNF NRT0: right shift and increment SC. */
+                  for (;;) {
+                      old_ar = hw_ar;
+                      hw_sc = (hw_sc + 1) & 0777;
+                      hw_ar = (old_ar >> 1) | (old_ar & SMASK);
+                      hw_mq = ((hw_mq >> 1) & 0177777777777LL) |
+                              (old_ar & SMASK) |
+                              ((old_ar & 1) << 34);
+                      if (hw_ar == 0 && (hw_mq & BIT1) == 0) {
+                          hw_sc = 0;
+                          break;
+                      }
+
+                      /* NRT1 and NRT2: complement SC, then shift
+                       * left until AR9 differs from AR0 or AR=FP HALF.
+                       * MQ1 feeds AR35 on each NRT2 shift.
+                       */
+                      hw_sc = (~hw_sc) & 0777;
+                      while (!(((hw_ar & (BIT9 - 1)) == 0 &&
+                                (hw_ar & BIT9) != 0) ||
+                               (((hw_ar & BIT9) != 0) !=
+                                ((hw_ar & SMASK) != 0)))) {
+                          old_ar = hw_ar;
+                          old_mq = hw_mq;
+                          hw_sc = (hw_sc + 1) & 0777;
+                          hw_ar = ((old_ar << 1) & (FMASK & ~1)) |
+                                  (old_ar & SMASK) |
+                                  ((old_mq & BIT1) >> 34);
+                          hw_mq = ((old_mq << 1) & (FMASK & ~1)) |
+                                  (old_ar & SMASK);
+                      }
+
+                      /* NRT3: once only, round when MQ1 is set.
+                       * NRT5 increments AR; NRT5A sets NRF3 and
+                       * returns to NRT0, disabling further rounding.
+                       */
+                      if ((hw_sc & 0400) == 0 && !pi_cycle) {
+                          FLAGS |= OVR | FLTOVR | TRP1;
+                          check_apr_irq();
+                      }
+                      do_round = ((hw_mq & BIT1) != 0 && !nrf3);
+                      if ((hw_ar & SMASK) == 0 || do_round)
+                          hw_sc = (~hw_sc) & 0777;
+                      if (do_round) {
+                          hw_ar = (hw_ar + 1) & FMASK;
+                          nrf3 = 1;
+                          continue;
+                      }
+                      hw_ar = (hw_ar & (SMASK | MANT)) |
+                              ((t_uint64)(hw_sc & 0377) << 27);
+                      break;
+                  }
+                  AR = hw_ar;
+                  MQ = hw_mq;
+                  SC = hw_sc;
+                  flag1 = (AR & SMASK) != 0;
+                  /* NRT4 has inserted SC1-8 into AR already. The
+                   * generic floating path must not encode it again. */
+                  goto pdp6_fadd_packed;
+              }
+#endif
 #if KL | KS
               SC |= (SC & 0400) ? 0777000 : 0;   /* Extend sign */
 #endif
@@ -7094,6 +7223,9 @@ fnormx:
               SCAD = SC ^ ((AR & SMASK) ? 0377 : 0);
               AR &= SMASK|MMASK;
               AR |= ((uint64)(SCAD & 0377)) << 27;
+#if PDP6
+pdp6_fadd_packed:
+#endif
 #if PDP6
               /* FADL FADRL FSBL FSBRL FMPL FMPRL */
               if ((IR & 03) == 1) {
