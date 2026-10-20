@@ -281,6 +281,9 @@ static t_stat gtyo_svc(UNIT *uptr)
     ge_ldsc[uptr->PORT].rcve = 0;
     tmxr_reset_ln(&ge_ldsc[uptr->PORT]);
     sim_debug(DEBUG_CMD, &ge_dev, "lost\n");
+    /* Lost carrier discards this byte, but GTYO still completes it.
+       Without DONE, the guest busy-waits forever and cannot recover. */
+    gtyo_done();
     break;
   case SCPE_STALL:
     sim_debug(DEBUG_CMD, &ge_dev, "stall\n");
