@@ -7012,7 +7012,30 @@ fnormx:
                                   (AR & FPSBIT) == 0 ||
                                   (AR & FPRMASK) != FPRBIT2)
 #endif
+#if PDP6
+                              /* The PDP-6 rounds an exactly half-way
+                               * negative floating result toward zero
+                               * (SAIL 10TO6.TED, hardware differences).
+                               * AR holds a sign-extended two's-complement
+                               * fraction.  At negative half-way its
+                               * discarded field is exactly FPRBIT2.
+                               * Adding a full target ULP (FPRBIT1) jumps
+                               * past the target value and can trigger an
+                               * erroneous additional normalization.
+                               * Cancel only the half-unit in this case;
+                               * all non-half-way and positive cases
+                               * retain the existing rounding behavior.
+                               * Later PDP-10 CPUs retain their separate
+                               * negative-tie rule above.
+                               */
+                              if ((AR & FPSBIT) != 0 &&
+                                  (AR & FPRMASK) == FPRBIT2)
+                                  AR += FPRBIT2;
+                              else
+                                  AR += FPRBIT1;
+#else
                               AR += FPRBIT1;
+#endif
                               nrf = 1;
 #if !PDP6
                               AR &= ~FPRMASK;
