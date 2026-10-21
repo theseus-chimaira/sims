@@ -249,6 +249,19 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
          /* DCSB reads the receiver/scanner counter on the PDP-6. */
 #if PDP6
          *data = (uint64)dcs_rx_scan;
+         /* PDP-6 send-buffer readiness: preserve scanner line in bits
+            0..5 and expose a separate bit 6.  This advertises precisely
+            the queue space required by tmxr_putc_ln() for a character
+            (including optional TELNET escaping).  The guest must not
+            issue DATAO until this bit is set. */
+         if ((dcs_send_line >= 0) && (dcs_send_line < dcs_desc.lines)) {
+             TMLN *tx = &dcs_ldsc[dcs_send_line];
+             if (tx->conn && (tx->txbsz - tmxr_tqln(tx) <= 1))
+                 tmxr_poll_tx(&dcs_desc);
+             if (tx->conn && (tx->txbsz - tmxr_tqln(tx) > 1) &&
+                 ((tx->txbps == 0) || (tx->txnexttime <= sim_gtime())))
+                 *data |= 0100;
+         }
 #else
          if ((uptr->STATUS & RSCN_ACT) != 0)
              *data = (uint64)dcs_tx_scan + DCS_LINE_BIAS;
