@@ -4462,10 +4462,6 @@ int nlzero(uint64 w) {
 t_stat sim_instr (void)
 {
 t_stat reason;
-#if PDP6
-/* Ctrl-E is asynchronous: do not abandon a PDP-6 UUO/PI microcycle. */
-t_stat pending_console_stop = SCPE_OK;
-#endif
 int     pi_rq;                   /* Interrupt request */
 int     pi_ov;                   /* Overflow during PI cycle */
 int     ind;                     /* Indirect bit */
@@ -4527,42 +4523,15 @@ if ((reason = build_dev_tab ()) != SCPE_OK)            /* build, chk dib_tab */
    watch_stop = 0;
 
    while ( reason == 0) {                                /* loop until ABORT */
-#if PDP6
-      /* sim_instr() is re-entered after CONTINUE and resets its local
-       * microcycle variables. A Ctrl-E stop in an indirect/UUO/PI cycle
-       * would resume at the wrong fetch phase and execute nonsense.
-       * Finish the current instruction before returning a console stop. */
-      if (pending_console_stop != SCPE_OK && f_load_pc && f_inst_fetch &&
-          !uuo_cycle && !pi_cycle && !xct_flag) {
-          fprintf(stderr, "PDP6_V106_DEFERRED_STOP PC=%06o FL=%d IF=%d UUO=%d PI=%d XCT=%d\n",
-                  (unsigned)PC, f_load_pc, f_inst_fetch, uuo_cycle, pi_cycle, xct_flag);
-          RUN = 0;
-          return pending_console_stop;
-      }
-#endif
       AIO_CHECK_EVENT;                                   /* queue async events */
       if (sim_interval <= 0) {                           /* check clock queue */
          if ((reason = sim_process_event()) != SCPE_OK) {/* error?  stop sim */
-#if PDP6
-             if (reason == SCPE_STOP && (!f_load_pc || !f_inst_fetch ||
-                 uuo_cycle || pi_cycle || xct_flag)) {
-                 pending_console_stop = reason;
-                 reason = SCPE_OK;
-             } else
-#endif
-             {
 #if ITS
-                 if (QITS)
-                     load_quantum();
+             if (QITS)
+                 load_quantum();
 #endif
-#if PDP6
-                 if (reason == SCPE_STOP)
-                     fprintf(stderr, "PDP6_V106_IMMEDIATE_STOP PC=%06o FL=%d IF=%d UUO=%d PI=%d XCT=%d\n",
-                             (unsigned)PC, f_load_pc, f_inst_fetch, uuo_cycle, pi_cycle, xct_flag);
-#endif
-                 RUN = 0;
-                 return reason;
-             }
+             RUN = 0;
+             return reason;
          }
     }
 
@@ -4858,12 +4827,6 @@ in_loop:
          AIO_CHECK_EVENT;                                   /* queue async events */
          if (--sim_interval <= 0) {
               if ((reason = sim_process_event()) != SCPE_OK) {
-#if PDP6
-                  if (reason == SCPE_STOP) {
-                      pending_console_stop = reason;
-                      reason = SCPE_OK;
-                  } else
-#endif
                   return reason;
               }
          }
