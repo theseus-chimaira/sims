@@ -174,7 +174,7 @@ t_stat dc_devio(uint32 dev, uint64 *data) {
              dc_doscan(uptr);
          *data = uptr->STATUS & (PI_CHN|RCV_PI|XMT_PI);
          sim_debug(DEBUG_CONI, &dc_dev, "DC %03o CONI %06o PC=%o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
          break;
 
     case CONO:
@@ -203,7 +203,7 @@ t_stat dc_devio(uint32 dev, uint64 *data) {
          }
 
          sim_debug(DEBUG_CONO, &dc_dev, "DC %03o CONO %06o PC=%06o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
          dc_doscan(uptr);
          break;
 
@@ -259,7 +259,7 @@ t_stat dc_devio(uint32 dev, uint64 *data) {
          }
          dc_doscan(uptr);
          sim_debug(DEBUG_DATAIO, &dc_dev, "DC %03o DATO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
          break;
 
     case DATAI:
@@ -296,7 +296,7 @@ t_stat dc_devio(uint32 dev, uint64 *data) {
          }
          dc_doscan(uptr);
          sim_debug(DEBUG_DATAIO, &dc_dev, "DC %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
          break;
     }
     return SCPE_OK;

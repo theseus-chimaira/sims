@@ -371,7 +371,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
      case CONI:
           *data = (uint64)dtsa;
           sim_debug(DEBUG_CONI, &dt_dev, "DTA %03o CONI %06o PC=%o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
           break;
 
      case CONO:
@@ -382,7 +382,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           dtsa |= (*data & 0777);
           dtsb = 0;
           sim_debug(DEBUG_CONO, &dt_dev, "DTA %03o CONO %06o PC=%o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
           /* Check bits in command register */
           if (*data & DTC_DESEL) {
               /* Stop all drives and clear drive unit */
@@ -490,7 +490,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           dtsb &= ~DTB_DATREQ;
           clr_interrupt(DT_DEVNUM|4);
           sim_debug(DEBUG_DATAIO, &dt_dev, "DTA %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
 
           break;
 
@@ -499,7 +499,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           dtsb &= ~DTB_DATREQ;
           clr_interrupt(DT_DEVNUM|4);
           sim_debug(DEBUG_DATAIO, &dt_dev, "DTA %03o DATO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           break;
 
      case CONI|04:
@@ -507,7 +507,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           if (dtsb & 0770000 & (dtsb >> 18)) 
              *data |= DTB_FLGREQ;
           sim_debug(DEBUG_CONI, &dt_dev, "DTB %03o CONI %012llo PC=%o\n",
-               dev, *data, PC);
+               dev, *data, kx10_pc);
           break;
 
      case CONO|04:
@@ -528,16 +528,16 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
               dtsb |= DTB_STOP;
 
           sim_debug(DEBUG_CONO, &dt_dev, "DTB %03o CONO %06o PC=%o DTSB=%012llo\n",
-               dev, (uint32)*data, PC, dtsb);
+               dev, (uint32)*data, kx10_pc, dtsb);
           break;
 
      case DATAI|4:
           sim_debug(DEBUG_DATAIO, &dt_dev, "DTB %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           break;
      case DATAO|4:
           sim_debug(DEBUG_DATAIO, &dt_dev, "DTB %03o DATO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           break;
 
      }
@@ -1097,7 +1097,7 @@ dt_boot(int32 unit_num, DEVICE * dptr)
        M[addr] = word;
     uptr->DSTATE = (1 << DTC_V_BLK) | DTC_BLOCK | DTC_MOT;
     sim_activate(uptr,30000);
-    PC = word & RMASK;
+    kx10_pc = word & RMASK;
     return SCPE_OK;
 }
 

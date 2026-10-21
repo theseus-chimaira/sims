@@ -1213,7 +1213,7 @@ rp_boot(int32 unit_num, DEVICE * rptr)
     rhc->status |= PI_ENABLE;
 #endif
     rhc->drive = uptr - dptr->units;
-    PC = word & RMASK;
+    kx10_pc = word & RMASK;
     regs[RPDS] |= DS_VV;
     return SCPE_OK;
 }

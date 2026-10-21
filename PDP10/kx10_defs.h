@@ -837,7 +837,8 @@ extern struct rh_dev rh[];
 #endif
 extern t_uint64   M[MAXMEMSIZE];
 extern t_uint64   FM[];
-extern uint32   PC;
+/* Never export a symbol named PC: termcap uses it for terminal padding. */
+extern uint32   kx10_pc;
 extern uint32   FLAGS;
 
 #if NUM_DEVS_TEN11

@@ -594,7 +594,7 @@ t_stat dte_devio(uint32 dev, uint64 *data) {
          if (dte_unit[0].STATUS & (DTE_10DB|DTE_11DN|DTE_10DN|DTE_11ER|DTE_10ER))
              set_interrupt(dev, dte_unit[0].STATUS);
          sim_debug(DEBUG_CONO, &dte_dev, "CTY %03o CONO %06o %06o\n", dev,
-                      (uint32)*data, PC);
+                      (uint32)*data, kx10_pc);
          break;
      case DATAI:
          sim_debug(DEBUG_DATAIO, &dte_dev, "CTY %03o DATAI %06o\n", dev,

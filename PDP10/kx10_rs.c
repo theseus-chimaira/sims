@@ -651,7 +651,7 @@ rs_boot(int32 unit_num, DEVICE * rptr)
     rhc->reg = 040;
     rhc->drive = uptr - dptr->units;
     rhc->status |= PI_ENABLE;
-    PC = word & RMASK;
+    kx10_pc = word & RMASK;
     return SCPE_OK;
 
 }

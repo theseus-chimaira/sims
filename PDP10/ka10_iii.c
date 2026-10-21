@@ -375,7 +375,7 @@ t_stat iii_devio(uint32 dev, uint64 *data) {
         if (uptr->STATUS & LIT_FBIT)
             *data |= LIGHT_FLG;
         sim_debug(DEBUG_CONI, &iii_dev, "III %03o CONI %06o %06o\n", dev, (uint32)*data,
-               PC);
+               kx10_pc);
         break;
      case CONO:
          clr_interrupt(III_DEVNUM);
@@ -397,7 +397,7 @@ t_stat iii_devio(uint32 dev, uint64 *data) {
          if (uptr->STATUS & HLT_MSK)
             set_interrupt(III_DEVNUM, uptr->PIA);
          sim_debug(DEBUG_CONO, &iii_dev, "III %03o CONO %06o %06o\n", dev,
-                     (uint32)*data, PC);
+                     (uint32)*data, kx10_pc);
          break;
      case DATAI:
          sim_debug(DEBUG_DATAIO, &iii_dev, "III %03o DATAI %06o\n", dev, (uint32)*data);

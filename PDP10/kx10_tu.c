@@ -915,7 +915,7 @@ tu_boot(int32 unit_num, DEVICE * dptr)
     M[036] = rhc->dib->uba_addr | (rhc->dib->uba_ctl << 18);
     M[037] = 0;
     M[040] = regs[TUTC];
-    PC = 01000;
+    kx10_pc = 01000;
     rh_boot_dev = dptr;
     rh_boot_unit = unit_num;
 #else
@@ -949,7 +949,7 @@ tu_boot(int32 unit_num, DEVICE * dptr)
     else
         M[addr] = tu_boot_buffer;
 
-    PC = tu_boot_buffer & RMASK;
+    kx10_pc = tu_boot_buffer & RMASK;
     regs[TUTC] |= unit_num;
 #endif
     return SCPE_OK;

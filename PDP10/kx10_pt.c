@@ -358,7 +358,7 @@ ptr_boot(int32 unit_num, DEVICE * dptr)
     uptr->CHR = 0;
     uptr->CHL = 0;
     sim_activate (&ptr_unit, ptr_unit.wait);
-    PC = word & RMASK;
+    kx10_pc = word & RMASK;
     return SCPE_OK;
 }
 

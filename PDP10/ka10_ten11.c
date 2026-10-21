@@ -314,7 +314,7 @@ int ten11_read (t_addr addr, uint64 *data)
     if (offset >= 0400) {
       sim_debug (DBG_TRC, &ten11_dev,
                  "Control page read NXM: %o @ %o\n",
-                 offset, PC);
+                 offset, kx10_pc);
       return 1;
     }
     *data = ten11_pager[offset];
@@ -396,7 +396,7 @@ int ten11_write (t_addr addr, uint64 data)
     if (offset >= 0400) {
       sim_debug (DBG_TRC, &ten11_dev,
                  "Control page write NXM: %o @ %o\n",
-                 offset, PC);
+                 offset, kx10_pc);
       return 1;
     }
     ten11_pager[offset] = data;

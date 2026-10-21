@@ -98,7 +98,7 @@ t_stat dk_devio(uint32 dev, uint64 *data) {
         *data = (uint64)(uptr->STAT_REG);
         *data |= ((uint64)uptr->INT_REG) << 18;
         sim_debug(DEBUG_CONI, &dk_dev, "DK  %03o CONI %06o PC=%o %06o\n",
-               dev, (uint32)*data, PC, uptr->CLK_REG);
+               dev, (uint32)*data, kx10_pc, uptr->CLK_REG);
         break;
 
     case CONO:
@@ -163,13 +163,13 @@ set_clock:
            sim_cancel(uptr);
         }
         sim_debug(DEBUG_CONO, &dk_dev, "DK %03o CONO %06o PC=%06o %06o\n",
-               dev, (uint32)*data, PC, uptr->STAT_REG);
+               dev, (uint32)*data, kx10_pc, uptr->STAT_REG);
         break;
 
     case DATAO:
         uptr->INT_REG = (uint32)(*data & RMASK);
         sim_debug(DEBUG_DATAIO, &dk_dev, "DK %03o DATO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
         goto set_clock;
 
     case DATAI:
@@ -180,7 +180,7 @@ set_clock:
         }
         *data = (uint64)(uptr->CLK_REG);
         sim_debug(DEBUG_DATAIO, &dk_dev, "DK %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
         goto set_clock;
     }
 

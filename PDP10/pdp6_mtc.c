@@ -244,7 +244,7 @@ mtc_devio(uint32 dev, uint64 *data) {
               res = (uint64)((mtc_hold_cmd & CMD_MASK) | (mtc_pia & FLAG_PIA));
               *data = res;
               sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status %08o %o %o PC=%06o\n",
-                          dev, mtc_status, mtc_sel_unit, mtc_pia, PC);
+                          dev, mtc_status, mtc_sel_unit, mtc_pia, kx10_pc);
               break;
 
            case CONO:
@@ -252,7 +252,7 @@ mtc_devio(uint32 dev, uint64 *data) {
               mtc_pia = (uint16)(*data) & (FLAG_PIA);
               mtc_hold_cmd = (*data & CMD_MASK);
               sim_debug(DEBUG_CONO, dptr, "MTC CONO %03o start %o %o%012llo PC=%06o\n",
-                            dev, mtc_sel_unit, mtc_pia, *data, PC);
+                            dev, mtc_sel_unit, mtc_pia, *data, kx10_pc);
               /* If nop done */
               if ((mtc_hold_cmd & FUNCTION) == 0)
                    break;
@@ -299,7 +299,7 @@ mtc_devio(uint32 dev, uint64 *data) {
                   res |= TAPE_FREE;
               *data = res;
               sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status %012llo %o %08o PC=%06o\n",
-                          dev, res, mtc_sel_unit, mtc_status, PC);
+                          dev, res, mtc_sel_unit, mtc_status, kx10_pc);
               break;
 
          case CONO:
@@ -311,7 +311,7 @@ mtc_devio(uint32 dev, uint64 *data) {
                  mtc_sel_unit = (mtc_hold_cmd >> 4) & 07;
               } 
               sim_debug(DEBUG_CONO, dptr, "MTC CONO %03o status %012llo %o %08o PC=%06o\n",
-                          dev, *data, mtc_sel_unit, mtc_status, PC);
+                          dev, *data, mtc_sel_unit, mtc_status, kx10_pc);
               uptr = &mtc_unit[mtc_sel_unit];
               mtc_checkirq(uptr);
               break;
@@ -334,7 +334,7 @@ mtc_devio(uint32 dev, uint64 *data) {
               if (mtc_hold_cmd & CMD_FULL) 
                   res |= CMD_HOLD;
               sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status2 %012llo %o %08o PC=%06o\n",
-                          dev, res, mtc_sel_unit, mtc_status, PC);
+                          dev, res, mtc_sel_unit, mtc_status, kx10_pc);
               break;
 
          case CONO:
@@ -848,7 +848,7 @@ mtc_boot(int32 unit_num, DEVICE * dptr)
     else
         M[addr] = hold_reg;
 
-    PC = hold_reg & RMASK;
+    kx10_pc = hold_reg & RMASK;
     return SCPE_OK;
 }
 

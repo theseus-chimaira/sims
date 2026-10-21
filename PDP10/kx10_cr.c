@@ -150,7 +150,7 @@ t_stat cr_devio(uint32 dev, uint64 *data) {
 
     case CONO:
          clr_interrupt(dev);
-         sim_debug(DEBUG_CONO, &cr_dev, "CR: CONO %012llo PC=%06o\n", *data, PC);
+         sim_debug(DEBUG_CONO, &cr_dev, "CR: CONO %012llo PC=%06o\n", *data, kx10_pc);
          if (*data & CLR_READER) {
              uptr->STATUS = 0;
              if (!CARD_RDY(uptr))

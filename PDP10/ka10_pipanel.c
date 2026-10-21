@@ -53,7 +53,7 @@ extern uint32 AC;         /* Accumulator */
 extern uint8  IX;         /* Index register */
 extern uint8  IND;        /* Indirect flag */
 extern t_addr AB;         /* Memory address register */
-extern t_addr PC;         /* Program counter register */
+extern t_addr kx10_pc;         /* Program counter register */
 #if KA | KI
 extern int    nxm_stop;   /* Stop if non-existent memory access */
 extern int    adr_cond;   /* Address stop condition */
@@ -390,7 +390,7 @@ void *blink(void *ptr)
                     break;
 
             case 4:
-                    leds = (PC & PC_MASK4) >> PC_V_4;
+                    leds = (kx10_pc & PC_MASK4) >> PC_V_4;
                     break;
 
             case 5:

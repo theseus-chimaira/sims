@@ -209,10 +209,10 @@ dd_devio(uint32 dev, uint64 *data) {
      switch(dev & 3) {
      case CONI:
         *data = uptr->PIA | uptr->STATUS;
-        sim_debug (DEBUG_CONI, &dd_dev, "%06llo (%6o)\n", *data, PC);
+        sim_debug (DEBUG_CONI, &dd_dev, "%06llo (%6o)\n", *data, kx10_pc);
         break;
      case CONO:
-        sim_debug (DEBUG_CONO, &dd_dev, "%06llo (%6o)\n", *data, PC);
+        sim_debug (DEBUG_CONO, &dd_dev, "%06llo (%6o)\n", *data, kx10_pc);
         uptr->STATUS &= ~DD_HALT;
         clr_interrupt (DD_DEVNUM);
         uptr->PIA = (uint32)(*data & 7);
@@ -249,11 +249,11 @@ dd_devio(uint32 dev, uint64 *data) {
         break;
      case DATAI:
         *data = 0;
-        sim_debug(DEBUG_DATAIO, &dd_dev, "DATAI (%6o)\n", PC);
+        sim_debug(DEBUG_DATAIO, &dd_dev, "DATAI (%6o)\n", kx10_pc);
         break;
     case DATAO:
         uptr->MA = *data & 0777777;
-        sim_debug(DEBUG_DATAIO, &dd_dev, "DATAO %06o (%6o)\n", uptr->MA, PC);
+        sim_debug(DEBUG_DATAIO, &dd_dev, "DATAO %06o (%6o)\n", uptr->MA, kx10_pc);
         if (uptr->STATUS & DD_DDGO)
             sim_activate (uptr, 1);
         break;
@@ -796,11 +796,11 @@ vds_devio(uint32 dev, uint64 *data)
 {
     switch(dev & 3) {
     case CONO:
-        sim_debug(DEBUG_CONO, &vds_dev, "%012llo (%6o)\n", *data, PC);
+        sim_debug(DEBUG_CONO, &vds_dev, "%012llo (%6o)\n", *data, kx10_pc);
         vds_channel = *data & 077;
         break;
     case DATAO:
-        sim_debug(DEBUG_DATAIO, &vds_dev, "%012llo (%6o)\n", *data, PC);
+        sim_debug(DEBUG_DATAIO, &vds_dev, "%012llo (%6o)\n", *data, kx10_pc);
         vds_changed[vds_channel] = 1;
         vds_selection[vds_channel] = (uint32)(*data >> 4);
         vds_sync_inhibit[vds_channel] = (*data >> 3) & 1;

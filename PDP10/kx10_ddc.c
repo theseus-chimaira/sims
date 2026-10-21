@@ -162,7 +162,7 @@ t_stat ddc_devio(uint32 dev, uint64 *data) {
      switch(dev & 3) {
      case CONI:
         sim_debug(DEBUG_CONI, dptr, "DDC %03o CONI %06o PC=%o\n", dev,
-                          (uint32)*data, PC);
+                          (uint32)*data, kx10_pc);
         *data = uptr->STATUS;
         if (ddc_cmdptr != ((ddc_putptr + 2) & 0xf)) {
             *data |= DDC_RDY;
@@ -191,7 +191,7 @@ t_stat ddc_devio(uint32 dev, uint64 *data) {
         }
 
          sim_debug(DEBUG_CONO, dptr, "DDC %03o CONO %06o PC=%o\n", dev,
-                   (uint32)*data, PC);
+                   (uint32)*data, kx10_pc);
          break;
      case DATAI:
          *data = (t_uint64)(uptr->SEC++);
@@ -201,11 +201,11 @@ t_stat ddc_devio(uint32 dev, uint64 *data) {
          if ((uptr->STATUS & DDC_DON) != 0)
             *data |= DDC_DONE;
          sim_debug(DEBUG_DATAIO, dptr, "DDC %03o DATI %012llo PC=%o\n",
-                  dev, *data, PC);
+                  dev, *data, kx10_pc);
          break;
      case DATAO:
          sim_debug(DEBUG_DATAIO, dptr, "DDC %03o DATO %012llo, PC=%o\n",
-                  dev, *data, PC);
+                  dev, *data, kx10_pc);
         /* Insert the command into the queue */
         if (((ddc_putptr + 1) & 0xf) != ddc_cmdptr) {
             int           func;

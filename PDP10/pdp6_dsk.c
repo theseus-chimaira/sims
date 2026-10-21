@@ -200,7 +200,7 @@ dsk_devio(uint32 dev, uint64 *data) {
               res |= WLE;
           *data = res;
           sim_debug(DEBUG_CONI, &dsk_dev, "DSK %03o CONI %012llo PC=%o\n", dev,
-                            *data, PC);
+                            *data, kx10_pc);
           break;
      case CONO:
           clr_interrupt(dev);
@@ -224,15 +224,15 @@ dsk_devio(uint32 dev, uint64 *data) {
           if ((dsk_cmd & EFR) != 0 && dsk_status & SECT_END)
               set_interrupt(dev, dsk_cmd);
           sim_debug(DEBUG_CONO, &dsk_dev, "DSK %03o CONO %06o PC=%o %06o\n", dev,
-                    (uint32)*data, PC, dsk_status);
+                    (uint32)*data, kx10_pc, dsk_status);
           break;
      case DATAI:
           sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATI %012llo PC=%o\n",
-                   dev, *data, PC);
+                   dev, *data, kx10_pc);
           break;
      case DATAO:
           sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATO %012llo, PC=%o %03o\n",
-                   dev, *data, PC, dsk_octflp);
+                   dev, *data, kx10_pc, dsk_octflp);
           /* If not in right state we can't change it */
           if (dsk_octflp & (SCE|SCS|CMS|ALS))
               break;

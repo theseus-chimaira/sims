@@ -243,7 +243,7 @@ t_stat rc_devio(uint32 dev, uint64 *data) {
 #endif
         *data |= PRTLT;
         sim_debug(DEBUG_CONI, dptr, "HK %03o CONI %06o PC=%o\n", dev,
-                          (uint32)*data, PC);
+                          (uint32)*data, kx10_pc);
         break;
      case CONO:
          if (*data & PI_ENABLE)
@@ -273,7 +273,7 @@ t_stat rc_devio(uint32 dev, uint64 *data) {
          } else
             df10->status &= ~CCW_COMP;
          sim_debug(DEBUG_CONO, dptr, "HK %03o CONO %06o PC=%o %06o\n", dev,
-                   (uint32)*data, PC, df10->status);
+                   (uint32)*data, kx10_pc, df10->status);
          break;
      case DATAI:
          *data = rc_ipr[ctlr];
@@ -281,11 +281,11 @@ t_stat rc_devio(uint32 dev, uint64 *data) {
          uptr = &rc_unit[(ctlr * NUM_UNITS_RC) + unit];
          *data |= (uptr->UFLAGS >> 3) & 0177;
          sim_debug(DEBUG_DATAIO, dptr, "HK %03o DATI %012llo PC=%o F=%o\n",
-                  dev, *data, PC, uptr->UFLAGS);
+                  dev, *data, kx10_pc, uptr->UFLAGS);
          break;
      case DATAO:
          sim_debug(DEBUG_DATAIO, dptr, "HK %03o DATO %012llo, PC=%o\n",
-                  dev, *data, PC);
+                  dev, *data, kx10_pc);
          if (df10->status & BUSY) {
             return SCPE_OK;
          }
@@ -520,7 +520,7 @@ rc_boot(int32 unit_num, DEVICE * dptr)
           M[addr++] = rc_buf[0][ptr++];
        }
     }
-    PC = (MEMSIZE - 512) & RMASK;
+    kx10_pc = (MEMSIZE - 512) & RMASK;
     return SCPE_OK;
 }
 

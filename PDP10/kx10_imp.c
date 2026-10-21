@@ -868,7 +868,7 @@ t_stat imp_devio(uint32 dev, uint64 *data)
     switch(dev & 07) {
     case CONO:
         sim_debug(DEBUG_CONO, dptr, "IMP %03o CONO %06o PC=%o\n", dev,
-                 (uint32)*data, PC);
+                 (uint32)*data, kx10_pc);
         switch (GET_DTYPE(uptr->flags)) {
         case TYPE_MIT:
              imp_data.pia = *data & 7;
@@ -969,7 +969,7 @@ t_stat imp_devio(uint32 dev, uint64 *data)
              break;
         }
         sim_debug(DEBUG_CONI, dptr, "IMP %03o CONI %012llo PC=%o\n", dev,
-                           *data, PC);
+                           *data, kx10_pc);
         break;
     case DATAO:
         uptr->STATUS |= IMPOB;
@@ -977,14 +977,14 @@ t_stat imp_devio(uint32 dev, uint64 *data)
         imp_data.obuf = *data;
         imp_data.obits = (uptr->STATUS & IMPO32) ? 32 : 36;
         sim_debug(DEBUG_DATAIO, dptr, "IMP %03o DATO %012llo %d %08x PC=%o\n",
-                 dev, *data, imp_data.obits, (uint32)(*data >> 4), PC);
+                 dev, *data, imp_data.obits, (uint32)(*data >> 4), kx10_pc);
         sim_activate(uptr, 100);
         break;
     case DATAI:
         *data = imp_data.ibuf;
         uptr->STATUS &= ~(IMPID|IMPLW);
         sim_debug(DEBUG_DATAIO, dptr, "IMP %03o DATI %012llo %08x PC=%o\n",
-                 dev, *data, (uint32)(*data >> 4), PC);
+                 dev, *data, (uint32)(*data >> 4), kx10_pc);
         if (uptr->ILEN != 0)
             uptr->STATUS |= IMPIB;
         sim_activate(uptr, 100);

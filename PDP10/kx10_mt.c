@@ -251,7 +251,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
              res |= SMASK;
           *data = res;
           sim_debug(DEBUG_CONI, dptr, "MT CONI %03o status %06o %o %o PC=%06o\n",
-                      dev, (uint32)res, mt_sel_unit, mt_pia, PC);
+                      dev, (uint32)res, mt_sel_unit, mt_pia, kx10_pc);
           break;
 
        case CONO:
@@ -277,7 +277,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
           mt_df10.buf = 0;
           sim_debug(DEBUG_CONO, dptr,
                   "MT CONO %03o start %o %o %o %012llo %012llo PC=%06o\n",
-                      dev, uptr->CNTRL, mt_sel_unit, mt_pia, *data, mt_status, PC);
+                      dev, uptr->CNTRL, mt_sel_unit, mt_pia, *data, mt_status, kx10_pc);
           if ((uptr->flags & UNIT_ATT) != 0) {
               /* Check if Write */
               int  cmd = (uptr->CNTRL & FUNCTION) >> 9;
@@ -340,7 +340,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
               sim_activate(uptr, 1000);
           } else {
               sim_activate(uptr, 9999999);
-              sim_debug(DEBUG_CONO, dptr, "MT CONO %03o hung PC=%06o\n", dev, PC);
+              sim_debug(DEBUG_CONO, dptr, "MT CONO %03o hung PC=%06o\n", dev, kx10_pc);
           }
           break;
 
@@ -397,7 +397,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
 #endif
           *data = res;
           sim_debug(DEBUG_CONI, dptr, "MT CONI %03o status2 %012llo %o %012llo PC=%06o\n",
-                      dev, res, mt_sel_unit, mt_status, PC);
+                      dev, res, mt_sel_unit, mt_status, kx10_pc);
           break;
 
      case CONO|04:
@@ -953,7 +953,7 @@ mt_boot(int32 unit_num, DEVICE * dptr)
     else
         M[addr] = mt_df10.buf;
 
-    PC = mt_df10.buf & RMASK;
+    kx10_pc = mt_df10.buf & RMASK;
     /* If not at end of record and TMA continue record read */
     if ((uint32)uptr->BPOS < uptr->hwmark) {
         uptr->CNTRL |= MT_MOTION|MT_BUSY;

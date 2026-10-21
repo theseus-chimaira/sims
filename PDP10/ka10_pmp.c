@@ -437,12 +437,12 @@ pmp_devio(uint32 dev, uint64 *data) {
           if ((pmp_status & (NXM_ERR|CHA_ERR|SEL_ERR)) != 0)
               *data |= UNU_END;
           sim_debug(DEBUG_CONI, &pmp_dev, "PMP %03o CONI %012llo PC=%o\n",
-               dev, *data, PC);
+               dev, *data, kx10_pc);
           break;
 
      case CONO:
           sim_debug(DEBUG_CONO, &pmp_dev, "PMP %03o CONO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           if (*data & 010)
              pmp_pia = *data & 7;
           pmp_irq = (uint32)(*data);
@@ -451,7 +451,7 @@ pmp_devio(uint32 dev, uint64 *data) {
 
      case DATAI:
           sim_debug(DEBUG_DATAIO, &pmp_dev, "PMP %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           *data = (uint64)(pmp_addr);
           break;
 
@@ -460,7 +460,7 @@ pmp_devio(uint32 dev, uint64 *data) {
           pmp_wc_hold = (*data >> 18) & RMASK;
           pmp_statusb |= WCMA_LD;
           sim_debug(DEBUG_DATAIO, &pmp_dev, "PMP %03o DATO %012llo %d PC=%06o\n",
-                    dev, *data, (int)(((RMASK ^ pmp_wc_hold) + 1) & RMASK), PC);
+                    dev, *data, (int)(((RMASK ^ pmp_wc_hold) + 1) & RMASK), kx10_pc);
           (void)pmp_checkirq();
           break;
 
@@ -473,12 +473,12 @@ pmp_devio(uint32 dev, uint64 *data) {
           if ((pmp_statusb & (OP1|REQ_CH|IDLE_CH)) == IDLE_CH)
              *data |= OPL;
           sim_debug(DEBUG_CONI, &pmp_dev, "IBM %03o CONI %012llo PC=%o\n",
-               dev, *data, PC);
+               dev, *data, kx10_pc);
           break;
 
      case CONO|04:
           sim_debug(DEBUG_CONO, &pmp_dev, "IBM %03o CONO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           if (*data & PWR_CLR) {    /* Power on clear */
               pmp_statusb = IDLE_CH;
               pmp_status = 0;
@@ -525,12 +525,12 @@ pmp_devio(uint32 dev, uint64 *data) {
 
      case DATAI|4:
           sim_debug(DEBUG_DATAIO, &pmp_dev, "IBM %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           break;
 
      case DATAO|4:
           sim_debug(DEBUG_DATAIO, &pmp_dev, "IBM %03o DATO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
           pmp_cmd_hold = (*data) & HOLD_MASK;
           pmp_statusb |= CMD_LD;
           pmp_startcmd();

@@ -288,7 +288,7 @@ uba_rh_write(DEVICE *dptr, t_addr addr, uint16 data, int32 access) {
         if ((rhc->status & BUSY) == 0) {
             rhc->cs2 &= ~(CS2_UAI);
             if( data & CS2_UAI)
-            sim_debug(DEBUG_DETAIL, dptr, "RH%o set no UAI %06o\n", rhc->drive, PC);
+            sim_debug(DEBUG_DETAIL, dptr, "RH%o set no UAI %06o\n", rhc->drive, kx10_pc);
             rhc->cs2 |= CS2_UAI & data;
         }
         rhc->cs2 |= (CS2_PE|CS2_MXF|CS2_PAT|CS2_UNIT) & data;
@@ -404,7 +404,7 @@ uba_rh_read(DEVICE *dptr, t_addr addr, uint16 *data, int32 access) {
     }
     *data = temp;
     sim_debug(DEBUG_DETAIL, dptr, "RH%o read %o %d %06o %06o %06o\n", rhc->drive, r, reg,
-             addr, temp, PC);
+             addr, temp, kx10_pc);
     /* Check for parity error during access */
     if (rhc->cs2 & CS2_PAT) {
        uba_set_parity(dibp->uba_ctl);
@@ -489,7 +489,7 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
               if (rhc->rae != 0)
                  *data |= RH20_RAE;
               sim_debug(DEBUG_CONI, dptr, "%s %03o CONI %06o PC=%o %o\n",
-                     dptr->name, dev, (uint32)*data, PC, rhc->attn);
+                     dptr->name, dev, (uint32)*data, kx10_pc, rhc->attn);
               return SCPE_OK;
 
          case CONO:
@@ -517,7 +517,7 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
                     || (rhc->status & PI_ENABLE))
                  set_interrupt(rhc->devnum, rhc->status);
               sim_debug(DEBUG_CONO, dptr, "%s %03o CONO %06o PC=%06o %06o\n",
-                    dptr->name, dev, (uint32)*data, PC, rhc->status);
+                    dptr->name, dev, (uint32)*data, kx10_pc, rhc->status);
               return SCPE_OK;
 
          case DATAI:
@@ -551,12 +551,12 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
               }
               *data |= ((uint64)(rhc->reg)) << 30;
               sim_debug(DEBUG_DATAIO, dptr, "%s %03o DATI %012llo %d PC=%06o\n",
-                          dptr->name, dev, *data, rhc->drive, PC);
+                          dptr->name, dev, *data, rhc->drive, kx10_pc);
               return SCPE_OK;
 
          case DATAO:
               sim_debug(DEBUG_DATAIO, dptr, "%s %03o DATO %012llo  PC=%06o %06o\n",
-                         dptr->name, dev, *data, PC, rhc->status);
+                         dptr->name, dev, *data, kx10_pc, rhc->status);
               rhc->reg = ((int)(*data >> 30)) & 077;
               rhc->imode |= 2;
               if (rhc->reg < 040)
@@ -626,7 +626,7 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
         *data |= B22_FLAG;
 #endif
         sim_debug(DEBUG_CONI, dptr, "%s %03o CONI %06o PC=%o %o\n",
-               dptr->name, dev, (uint32)*data, PC, rhc->attn);
+               dptr->name, dev, (uint32)*data, kx10_pc, rhc->attn);
         return SCPE_OK;
 
      case CONO:
@@ -659,7 +659,7 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
          if ((rhc->status & IADR_ATTN) != 0 && rhc->attn != 0)
             set_interrupt(dev, rhc->status);
          sim_debug(DEBUG_CONO, dptr, "%s %03o CONO %06o PC=%06o %06o\n",
-               dptr->name, dev, (uint32)*data, PC, rhc->status);
+               dptr->name, dev, (uint32)*data, kx10_pc, rhc->status);
          return SCPE_OK;
 
      case DATAI:
@@ -694,12 +694,12 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
         }
         *data |= ((uint64)(rhc->reg)) << 30;
         sim_debug(DEBUG_DATAIO, dptr, "%s %03o DATI %012llo %d PC=%06o\n",
-                    dptr->name, dev, *data, rhc->drive, PC);
+                    dptr->name, dev, *data, rhc->drive, kx10_pc);
         return SCPE_OK;
 
      case DATAO:
          sim_debug(DEBUG_DATAIO, dptr, "%s %03o DATO %012llo  PC=%06o %06o\n",
-                    dptr->name, dev, *data, PC, rhc->status);
+                    dptr->name, dev, *data, kx10_pc, rhc->status);
          rhc->reg = ((int)(*data >> 30)) & 077;
          rhc->imode &= ~2;
          if (rhc->reg < 040 && rhc->reg != 04) {
@@ -722,7 +722,7 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
                    rh_setirq(rhc);
                    sim_debug(DEBUG_DATAIO, dptr,
                        "%s %03o command abort %012llo, %d PC=%06o %06o\n",
-                       dptr->name, dev, *data, rhc->drive, PC, rhc->status);
+                       dptr->name, dev, *data, rhc->drive, kx10_pc, rhc->status);
                    return SCPE_OK;
                 }
                 rhc->drive = (int)(*data >> 18) & 07;
@@ -738,7 +738,7 @@ t_stat rh_devio(uint32 dev, uint64 *data) {
                 }
                 sim_debug(DEBUG_DATAIO, dptr,
                     "%s %03o command %012llo, %d PC=%06o %06o\n",
-                    dptr->name, dev, *data, rhc->drive, PC, rhc->status);
+                    dptr->name, dev, *data, rhc->drive, kx10_pc, rhc->status);
              } else if (rhc->reg == 044) {
                 /* Set KI10 Irq vector */
                 rhc->ivect = (int)(*data & IRQ_VECT);

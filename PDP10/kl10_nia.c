@@ -469,12 +469,12 @@ t_stat nia_devio(uint32 dev, uint64 *data)
         if (nia_data.status & (NIA_CPE|NIA_RQA))
             set_interrupt(NIA_DEVNUM, nia_data.status & NIA_PIA);
         sim_debug(DEBUG_CONO, dptr, "NIA %03o CONO %06o PC=%06o %012llo\n", dev,
-                 (uint32)(*data & RMASK), PC, nia_data.status);
+                 (uint32)(*data & RMASK), kx10_pc, nia_data.status);
         break;
     case CONI:
         *data = nia_data.status|NIA_PPT|NIA_PID;
         sim_debug(DEBUG_CONI, dptr, "NIA %03o CONI %012llo PC=%o\n", dev,
-                           *data, PC);
+                           *data, kx10_pc);
         break;
     case DATAO:
         if (nia_data.status & NIA_SEB) {
@@ -492,7 +492,7 @@ t_stat nia_devio(uint32 dev, uint64 *data)
             }
         }
         sim_debug(DEBUG_DATAIO, dptr, "NIA %03o DATO %012llo PC=%o\n",
-                 dev, *data, PC);
+                 dev, *data, kx10_pc);
         break;
     case DATAI:
         if (nia_data.status & NIA_SEB) {
@@ -507,7 +507,7 @@ t_stat nia_devio(uint32 dev, uint64 *data)
             }
         }
         sim_debug(DEBUG_DATAIO, dptr, "NIA %03o DATI %012llo PC=%o\n",
-                 dev, *data, PC);
+                 dev, *data, kx10_pc);
         break;
     }
 

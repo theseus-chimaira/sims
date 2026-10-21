@@ -103,7 +103,7 @@ dct_devio(uint32 dev, uint64 *data) {
      case CONI:
           *data = (uint64)(uptr->STATUS);
           sim_debug(DEBUG_CONI, &dct_dev, "DCT %03o CONI %012llo %d PC=%o\n", dev,
-                             *data, u, PC);
+                             *data, u, kx10_pc);
           break;
 
      case CONO:
@@ -113,7 +113,7 @@ dct_devio(uint32 dev, uint64 *data) {
           if (uptr->STATUS & DB_RQ)
               set_interrupt(dev, uptr->STATUS);
           sim_debug(DEBUG_CONO, &dct_dev, "DCT %03o CONO %06o %d PC=%o %06o\n", dev,
-                  (uint32)*data, u, PC, uptr->STATUS);
+                  (uint32)*data, u, kx10_pc, uptr->STATUS);
           break;
 
      case DATAI:
@@ -125,13 +125,13 @@ dct_devio(uint32 dev, uint64 *data) {
               sim_activate(uptr, 10);
           }
           sim_debug(DEBUG_DATAIO, &dct_dev, "DCT %03o DATI %012llo %d  PC=%o\n",
-                  dev, *data, u, PC);
+                  dev, *data, u, kx10_pc);
           break;
 
      case DATAO:
           clr_interrupt(dev);
           sim_debug(DEBUG_DATAIO, &dct_dev, "DCT %03o DATO %012llo, %d PC=%o\n",
-                  dev, *data, u, PC);
+                  dev, *data, u, kx10_pc);
           if (uptr->STATUS & DB_RQ) {
               dct_buf[u] = *data;
               uptr->STATUS &= ~(NUM_CHARS|DB_RQ);

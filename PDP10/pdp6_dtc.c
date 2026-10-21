@@ -348,7 +348,7 @@ dtc_devio(uint32 dev, uint64 *data) {
      case CONI:
           *data = (uint64)dtc_dtsa;
           sim_debug(DEBUG_CONI, &dtc_dev, "DTC %03o CONI %06o PC=%o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
           break;
 
      case CONO:
@@ -359,7 +359,7 @@ dtc_devio(uint32 dev, uint64 *data) {
                          DTC_START|DTC_JDONE|DTC_ETF|DTC_SEL);
           dtc_dtsb = 0;
           sim_debug(DEBUG_CONO, &dtc_dev, "DTC %03o CONO %06o PC=%o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
           i = DTC_GETUNI(*data);
 #if DTC_NUMDR < 8
           if (i >= DTC_NUMDR) {
@@ -421,7 +421,7 @@ dtc_devio(uint32 dev, uint64 *data) {
      case CONI|04:
           *data = dtc_dtsb;
           sim_debug(DEBUG_CONI, &dtc_dev, "DTB %03o CONI %012llo PC=%o\n",
-               dev, *data, PC);
+               dev, *data, kx10_pc);
           break;
 
      case CONO|04:
@@ -1118,7 +1118,7 @@ dtc_boot(int32 unit_num, DEVICE * dptr)
        M[addr] = word;
     uptr->DSTATE = (1 << DTC_V_BLK) | DTC_BLOCK | DTC_MOT;
     sim_activate(uptr,30000);
-    PC = word & RMASK;
+    kx10_pc = word & RMASK;
     return SCPE_OK;
 }
 

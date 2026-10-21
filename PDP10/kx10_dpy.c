@@ -312,7 +312,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
          */
         *data |= SMASK;                 /* always assigned to us */
         sim_debug(DEBUG_CONI, &dpy_dev, "DPY  %03o CONI PC=%06o %012llo\n",
-                  dev, PC, *data);
+                  dev, kx10_pc, *data);
         break;
 
     case CONO:
@@ -329,7 +329,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
             dpy_update_status( uptr, ty340_status(), 0);
         }
         sim_debug(DEBUG_CONO, &dpy_dev, "DPY %03o CONO %06o PC=%06o %06o\n",
-                  dev, (uint32)*data, PC, uptr->STAT_REG & ~STAT_VALID);
+                  dev, (uint32)*data, kx10_pc, uptr->STAT_REG & ~STAT_VALID);
         if (!sim_is_active(uptr) && !display_is_blank())
             dpy_schedule(uptr);
         break;
@@ -340,7 +340,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
 
         /* if fed using BLKO from interrupt vector, PC will be wrong! */
         sim_debug(DEBUG_DATAIO, &dpy_dev, "DPY %03o DATO %012llo PC=%06o\n",
-                  dev, *data, PC);
+                  dev, *data, kx10_pc);
 
         inst = (uint32)LRZ(*data);
         delay_half_us = ty340_instruction_time_half_us(inst);
@@ -358,7 +358,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
     case DATAI:
         *data = XWD(uptr->YPOS, uptr->XPOS);
         sim_debug(DEBUG_DATAIO, &dpy_dev, "DPY %03o DATI %06o,,%06o PC=%06o\n",
-                  dev, uptr->YPOS, uptr->XPOS, PC);
+                  dev, uptr->YPOS, uptr->XPOS, kx10_pc);
         break;
     }
     return SCPE_OK;
@@ -762,7 +762,7 @@ t_stat wcnsls_devio(uint32 dev, uint64 *data) {
         }
 
         sim_debug(DEBUG_DATAIO, &wcnsls_dev, "WCNSLS %03o DATI %012llo PC=%06o\n",
-                  dev, *data, PC);
+                  dev, *data, kx10_pc);
         break;
     }
     return SCPE_OK;

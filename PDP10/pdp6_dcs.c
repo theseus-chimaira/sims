@@ -165,7 +165,7 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
          if ((uptr->STATUS & (XSCN_ACT)) == 0)
             *data |= 01000LL;
          sim_debug(DEBUG_CONI, &dcs_dev, "DCS %03o CONI %06o PC=%o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
          break;
 
     case CONO:
@@ -182,7 +182,7 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
          }
 
          sim_debug(DEBUG_CONO, &dcs_dev, "DCS %03o CONO %06o PC=%06o\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
          dcs_doscan(uptr);
          break;
 
@@ -218,7 +218,7 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
              dcs_doscan(uptr);
          }
          sim_debug(DEBUG_DATAIO, &dcs_dev, "DC %03o DATO %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
          break;
 
     case DATAI:
@@ -243,7 +243,7 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
              dcs_doscan(uptr);
          }
          sim_debug(DEBUG_DATAIO, &dcs_dev, "DCS %03o DATI %012llo PC=%06o\n",
-                    dev, *data, PC);
+                    dev, *data, kx10_pc);
          break;
     case CONI|4:
          /* DCSB reads the receiver/scanner counter on the PDP-6. */
@@ -256,14 +256,14 @@ t_stat dcs_devio(uint32 dev, uint64 *data) {
              *data = (uint64)dcs_rx_scan + DCS_LINE_BIAS;
 #endif
          sim_debug(DEBUG_CONI, &dcs_dev, "DCS %03o CONI %06o PC=%o recieve line\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
          break;
 
     case CONO|4:
          /* DCSB loads the send-buffer line selection. */
          dcs_send_line = (int)(*data & 077) - DCS_LINE_BIAS;
          sim_debug(DEBUG_CONO, &dcs_dev, "DCS %03o CONO %06o PC=%06o send line\n",
-               dev, (uint32)*data, PC);
+               dev, (uint32)*data, kx10_pc);
          break;
     }
     return SCPE_OK;

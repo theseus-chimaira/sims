@@ -128,7 +128,7 @@ uint64  BR;                                   /* Secondary operand */
 uint64  AD;                                   /* Address Data */
 uint64  MB;                                   /* Memory Bufer Register */
 t_addr  AB;                                   /* Memory address buffer */
-t_addr  PC;                                   /* Program counter */
+t_addr  kx10_pc;                                   /* Program counter */
 uint32  IR;                                   /* Instruction register */
 uint64  MI;                                   /* Monitor lights */
 uint8   MI_flag;                              /* Monitor flags */
@@ -454,7 +454,7 @@ REG cpu_reg[] = {
      * Keep optional profiling arrays after PC: otherwise GO 020 writes
      * the first OPCOUNT element and silently starts from the wrong PC.
      */
-    { ORDATAD (PC, PC, 18, "Program Counter") },
+    { ORDATAD (PC, kx10_pc, 18, "Program Counter") },
 #if PDP6
     { BRDATA (OPCOUNT, pdp6_opcode_count, 10, 64, 512) },
 #endif
@@ -3530,7 +3530,7 @@ fault:
         fault_data |= 01000;
         check_apr_irq();
     } else {
-        PC = (PC + 1) & RMASK;
+        kx10_pc = (kx10_pc + 1) & RMASK;
     }
     return 0;
 }
@@ -4535,7 +4535,7 @@ if ((reason = build_dev_tab ()) != SCPE_OK)            /* build, chk dib_tab */
          }
     }
 
-    if (sim_brk_summ && f_load_pc && sim_brk_test(PC, SWMASK('E'))) {
+    if (sim_brk_summ && f_load_pc && sim_brk_test(kx10_pc, SWMASK('E'))) {
          reason = STOP_IBKPT;
          RUN = 0;
          break;
@@ -4602,7 +4602,7 @@ if ((reason = build_dev_tab ()) != SCPE_OK)            /* build, chk dib_tab */
         sect = cur_sect = pc_sect;
         glb_sect = 0;
 #endif
-        AB = PC;
+        AB = kx10_pc;
         uuo_cycle = 0;
         f_pc_inh = 0;
     }
@@ -4613,7 +4613,7 @@ fetch:
 #endif
 #if ITS
         if (QITS && pi_cycle == 0 && mem_prot == 0) {
-           opc = PC | (FLAGS << 18);
+           opc = kx10_pc | (FLAGS << 18);
            if ((FLAGS & ONEP) != 0) {
               one_p_arm = 1;
               FLAGS &= ~ONEP;
@@ -4641,7 +4641,7 @@ fetch:
 #if KL
             /* Handling for PUBLIC violation */
             if (((fault_data >> 30) & 037) == 021)
-               PC = (PC + 1) & RMASK;
+               kx10_pc = (kx10_pc + 1) & RMASK;
 #endif
             goto last;
         }
@@ -4915,26 +4915,26 @@ st_pi:
 #if KI | KL | KS
     if (page_enable && page_fault) {
         if (!f_pc_inh && !pi_cycle)
-            PC = (PC + 1) & RMASK;
+            kx10_pc = (kx10_pc + 1) & RMASK;
         goto last;
     }
 #endif
 
     /* Check if possible idle loop */
     if (sim_idle_enab &&
-          ((PC < 020 && AB < 020 && (IR & 0740) == 0340) ||
+          ((kx10_pc < 020 && AB < 020 && (IR & 0740) == 0340) ||
            (uuo_cycle && (IR & 0740) == 0 && IA == 041))) {
        sim_idle (TMR_RTC, FALSE);
     }
 
     /* Update history */
     if (hst_lnt) {
-            if (PC != 017)
+            if (kx10_pc != 017)
                 hst_p = hst_p + 1;
             if (hst_p >= hst_lnt) {
                 hst_p = 0;
             }
-            hst[hst_p].pc = HIST_PC | ((BYF5)? (HIST_PC2|PC) : IA);
+            hst[hst_p].pc = HIST_PC | ((BYF5)? (HIST_PC2|kx10_pc) : IA);
             hst[hst_p].ea = AB;
 #if KL | KS
             if (extend)
@@ -5081,9 +5081,9 @@ unasign:
               AB++;
 #if KL
               if (QKLB && t20_page)
-                  MB = ((uint64)(pc_sect) << 18) | ((PC + (trap_flag == 0)) & RMASK);
+                  MB = ((uint64)(pc_sect) << 18) | ((kx10_pc + (trap_flag == 0)) & RMASK);
               else {
-                  MB = (((uint64)(FLAGS) << 23) & LMASK) | ((PC + (trap_flag == 0)) & RMASK);
+                  MB = (((uint64)(FLAGS) << 23) & LMASK) | ((kx10_pc + (trap_flag == 0)) & RMASK);
                   /* Save public setting */
                   if ((FLAGS & USER) == 0) {
                       MB &= ~SMASK;
@@ -5092,11 +5092,11 @@ unasign:
               }
 #elif KS
               if (t20_page)
-                  MB = (PC + (trap_flag == 0)) & RMASK;
+                  MB = (kx10_pc + (trap_flag == 0)) & RMASK;
               else
-                  MB = (((uint64)(FLAGS) << 23) & LMASK) | ((PC + (trap_flag == 0)) & RMASK);
+                  MB = (((uint64)(FLAGS) << 23) & LMASK) | ((kx10_pc + (trap_flag == 0)) & RMASK);
 #else
-              MB = (((uint64)(FLAGS) << 23) & LMASK) | ((PC + (trap_flag == 0)) & RMASK);
+              MB = (((uint64)(FLAGS) << 23) & LMASK) | ((kx10_pc + (trap_flag == 0)) & RMASK);
 #if KI
               /* Save public setting */
               if ((FLAGS & USER) == 0) {
@@ -5182,7 +5182,7 @@ unasign:
                       FLAGS |= PRV_PUB|OVR;
 #endif
               }
-              PC = MB & RMASK;
+              kx10_pc = MB & RMASK;
               f_pc_inh = 1;
               break;
 #else
@@ -5220,7 +5220,7 @@ unasign:
                   Mem_write_nopage();
                   /* Save PC */
                   AB++;
-                  MB = ((uint64)(pc_sect) << 18) | ((PC + (trap_flag == 0)) & RMASK);
+                  MB = ((uint64)(pc_sect) << 18) | ((kx10_pc + (trap_flag == 0)) & RMASK);
                   Mem_write_nopage();
                   MB = AR;
                   AB ++;
@@ -5229,7 +5229,7 @@ unasign:
                   /* Read PC */
                   Mem_read_nopage();
                   pc_sect = (MB >> 18) & 07777;
-                  PC = MB & RMASK;
+                  kx10_pc = MB & RMASK;
                   f_pc_inh = 1;
                   break;
               }
@@ -6386,7 +6386,7 @@ dpnorm:
     case 0104: /* TENEX JSYS */
 #if BBN
               if (QBBN) {
-                   BR = ((uint64)(FLAGS) << 23) | ((PC + !pi_cycle) & RMASK);
+                   BR = ((uint64)(FLAGS) << 23) | ((kx10_pc + !pi_cycle) & RMASK);
                    if (AB < 01000) {
                       AB += 01000;
                       if ((FLAGS & USER) == 0)
@@ -6404,7 +6404,7 @@ dpnorm:
                        FLAGS = (uint32)(BR >> 23); /* On error restore flags */
                        goto last;
                    }
-                   PC = AR & RMASK;
+                   kx10_pc = AR & RMASK;
                    break;
               }
 #endif
@@ -6726,7 +6726,7 @@ ldb_ptr:
 #endif
 #if ITS
                   if (QITS && pi_cycle == 0 && mem_prot == 0) {
-                     opc = PC | (FLAGS << 18);
+                     opc = kx10_pc | (FLAGS << 18);
                   }
 #endif
               } else {
@@ -8392,10 +8392,10 @@ mul_done:
               if (BR != 0) {
 #if ITS | KL_ITS
                   if (QITS && (FLAGS & USER)) {
-                      jpc = PC;
+                      jpc = kx10_pc;
                   }
 #endif
-                  PC = AB;
+                  kx10_pc = AB;
                   f_pc_inh = 1;
                   SC = nlzero(BR);
               }
@@ -8610,11 +8610,11 @@ mul_done:
               if ((AR & SMASK) == 0) {
 #if ITS | KL_ITS
                   if (QITS && (FLAGS & USER)) {
-                      jpc = PC;
+                      jpc = kx10_pc;
                   }
 #endif
                   PC_CHANGE
-                  PC = AB;
+                  kx10_pc = AB;
                   f_pc_inh = 1;
               }
               AR &= FMASK;
@@ -8626,11 +8626,11 @@ mul_done:
               if ((AR & SMASK) != 0) {
 #if ITS | KL_ITS
                   if (QITS && (FLAGS & USER)) {
-                      jpc = PC;
+                      jpc = kx10_pc;
                   }
 #endif
                   PC_CHANGE
-                  PC = AB;
+                  kx10_pc = AB;
                   f_pc_inh = 1;
               }
               AR &= FMASK;
@@ -8758,10 +8758,10 @@ jrstf:
                        AB = (AB + 1) & RMASK;
 #if KL
                        if (QKLB && t20_page)
-                           MB = (((((uint64)pc_sect) << 18) | PC) + !pi_cycle) & (SECTM|RMASK);
+                           MB = (((((uint64)pc_sect) << 18) | kx10_pc) + !pi_cycle) & (SECTM|RMASK);
                        else
 #endif
-                           MB = (PC + !pi_cycle) & (RMASK);
+                           MB = (kx10_pc + !pi_cycle) & (RMASK);
                        if (Mem_write(0, 0))
                           goto last;
                        AB = (AB + 1) & RMASK;
@@ -8835,10 +8835,10 @@ jrstf:
               }
 #if KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
-              PC = AR & RMASK;
+              kx10_pc = AR & RMASK;
 #if KL
               if (QKLB && t20_page && glb_sect)
                   pc_sect = (AR >> 18) & 07777;
@@ -8884,10 +8884,10 @@ jrstf:
               }
 #if ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
-              PC = AR & RMASK;
+              kx10_pc = AR & RMASK;
               PC_CHANGE
               /* JRSTF */
               if (AC & 02) {
@@ -8932,10 +8932,10 @@ jrstf:
               if ((FLAGS >> 9) & AC) {
 #if ITS | KL_ITS
                   if (QITS && (FLAGS & USER)) {
-                      jpc = PC;
+                      jpc = kx10_pc;
                   }
 #endif
-                  PC = AR & RMASK;
+                  kx10_pc = AR & RMASK;
                   f_pc_inh = 1;
               }
               FLAGS &=  037777 ^ (AC << 9);
@@ -9103,10 +9103,10 @@ jrstf:
               if (QKLB && t20_page)
                   AR = (sect << 18) | (AR & RMASK);;
               if (QKLB && t20_page && pc_sect != 0) {
-                  MB = ((uint64)pc_sect << 18) + (PC + !pi_cycle);
+                  MB = ((uint64)pc_sect << 18) + (kx10_pc + !pi_cycle);
               } else {
 #endif
-              MB = (((uint64)(FLAGS) << 23) & LMASK) | ((PC + !pi_cycle) & RMASK);
+              MB = (((uint64)(FLAGS) << 23) & LMASK) | ((kx10_pc + !pi_cycle) & RMASK);
 #if KI | KL
               if ((FLAGS & USER) == 0) {
                   MB &= ~SMASK;
@@ -9166,14 +9166,14 @@ jrstf:
 #endif
 #if ITS | KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
 #if KL
               if (QKLB && t20_page)
                   pc_sect = (AR >> 18) & 0037;
 #endif
-              PC = AR & RMASK;
+              kx10_pc = AR & RMASK;
               PC_CHANGE
               f_pc_inh = 1;
               AR = BR & FMASK;
@@ -9330,12 +9330,12 @@ jrstf:
                   goto last;
 #if ITS | KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
               f_pc_inh = 1;
               PC_CHANGE
-              PC = MB & RMASK;
+              kx10_pc = MB & RMASK;
 #if KL | KS
               BYF5 = 0;   /* Tell PXCT that this is stack */
 #endif
@@ -9366,10 +9366,10 @@ jrstf:
               AR &= RMASK;
 #if KL
               if (QKLB && t20_page && pc_sect != 0)
-                  MB = ((uint64)pc_sect << 18) + (PC + !pi_cycle);
+                  MB = ((uint64)pc_sect << 18) + (kx10_pc + !pi_cycle);
               else {
 #endif
-              MB = (((uint64)(FLAGS) << 23) & LMASK) | ((PC + !pi_cycle) & RMASK);
+              MB = (((uint64)(FLAGS) << 23) & LMASK) | ((kx10_pc + !pi_cycle) & RMASK);
 #if KI | KL
               if ((FLAGS & USER) == 0) {
                   MB &= ~SMASK;
@@ -9393,7 +9393,7 @@ jrstf:
               FLAGS &= ~ (BYTI|ADRFLT|TRP1|TRP2);
 #if ITS | KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
               PC_CHANGE
@@ -9404,21 +9404,21 @@ jrstf:
                       cur_sect++;
                   if (glb_sect)
                       pc_sect = cur_sect;
-                  PC = AR & RMASK;
+                  kx10_pc = AR & RMASK;
               } else
 #endif
-              PC = (AR + 1) & RMASK;
+              kx10_pc = (AR + 1) & RMASK;
               f_pc_inh = 1;
               break;
 
     case 0265: /* JSP */  /* SAC */
 #if KL
               if (QKLB && t20_page && pc_sect != 0)
-                  AD = ((uint64)pc_sect << 18) + (PC + !pi_cycle);
+                  AD = ((uint64)pc_sect << 18) + (kx10_pc + !pi_cycle);
               else {
 #endif
               AD = (((uint64)(FLAGS) << 23) & LMASK) |
-                      ((PC + !pi_cycle) & RMASK);
+                      ((kx10_pc + !pi_cycle) & RMASK);
               FLAGS &= ~ (BYTI|ADRFLT|TRP1|TRP2);
 #if KI | KL
               if ((FLAGS & USER) == 0) {
@@ -9436,7 +9436,7 @@ jrstf:
 #endif
 #if ITS | KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
               PC_CHANGE
@@ -9444,14 +9444,14 @@ jrstf:
               if (QKLB && t20_page && glb_sect)
                   pc_sect = cur_sect;
 #endif
-              PC = AR & RMASK;
+              kx10_pc = AR & RMASK;
               AR = AD;
               f_pc_inh = 1;
               set_reg(AC, AR);
               break;
 
     case 0266: /* JSA */ /* FBR|SCE */
-              AR = ((AR & RMASK) << 18) | ((PC + 1) & RMASK);
+              AR = ((AR & RMASK) << 18) | ((kx10_pc + 1) & RMASK);
               MB = BR;
               set_reg(AC, AR);
 #if !PDP6
@@ -9461,7 +9461,7 @@ jrstf:
 #endif
 #if ITS | KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
               PC_CHANGE
@@ -9469,7 +9469,7 @@ jrstf:
               if (QKLB && t20_page && glb_sect)
                   pc_sect = cur_sect;
 #endif
-              PC = AB;
+              kx10_pc = AB;
               if (Mem_write(0, 0)) {
                  goto last;
               }
@@ -9483,11 +9483,11 @@ jrstf:
               set_reg(AC, MB);
 #if ITS | KL_ITS
               if (QITS && (FLAGS & USER)) {
-                  jpc = PC;
+                  jpc = kx10_pc;
               }
 #endif
               PC_CHANGE
-              PC = (t_addr)(AD & RMASK);
+              kx10_pc = (t_addr)(AD & RMASK);
               f_pc_inh = 1;
               break;
 
@@ -9721,11 +9721,11 @@ jump_op:
               if (((IR & 04) != 0) == (f == 0)) {
 #if ITS | KL_ITS
                   if (QITS && (FLAGS & USER)) {
-                      jpc = PC;
+                      jpc = kx10_pc;
                   }
 #endif
                   PC_CHANGE
-                  PC = AB;
+                  kx10_pc = AB;
                   f_pc_inh = 1;
               }
               AR &= FMASK;
@@ -9782,7 +9782,7 @@ skip_op:
                      f_pc_inh = 1;
 #endif
                   PC_CHANGE
-                  PC = (PC + 1) & RMASK;
+                  kx10_pc = (kx10_pc + 1) & RMASK;
 #if KI | KL
               } else if (trap_flag == 0 && pi_cycle) {
                    pi_ov = pi_hold = 1;
@@ -11048,7 +11048,7 @@ skip_op:
               f = ((AR == 0) & ((IR >> 1) & 1)) ^ ((IR >> 2) & 1);
               if (f) {
                   PC_CHANGE
-                  PC = (PC + 1) & RMASK;
+                  kx10_pc = (kx10_pc + 1) & RMASK;
               }
               AR = MQ;
               if ((IR & 060) != 0)
@@ -11172,7 +11172,7 @@ skip_op:
                                      BR |= 010;
                                  BR = (BR & AR) & RMASK;
                                  if (BR == 0)
-                                     PC = (PC + 1) & RMASK;
+                                     kx10_pc = (kx10_pc + 1) & RMASK;
                                  sim_debug(DEBUG_CONI, &cpu_dev, "CONSZ %012llo\n", AR);
                                  break;
 
@@ -11185,7 +11185,7 @@ skip_op:
                                      BR |= 010;
                                  BR = (BR & AR) & RMASK;
                                  if (BR != 0)
-                                     PC = (PC + 1) & RMASK;
+                                     kx10_pc = (kx10_pc + 1) & RMASK;
                                  sim_debug(DEBUG_CONI, &cpu_dev, "CONSO %012llo\n", AR);
                                  break;
 
@@ -11239,7 +11239,7 @@ skip_op:
                                  BR |= (PIH << 8);
                                  BR = (BR & AR) & RMASK;
                                  if (BR == 0)
-                                     PC = (PC + 1) & RMASK;
+                                     kx10_pc = (kx10_pc + 1) & RMASK;
                                  sim_debug(DEBUG_CONI, &cpu_dev, "CONSZ PI %012llo\n", AR);
                                  break;
 
@@ -11251,7 +11251,7 @@ skip_op:
                                  BR |= (PIH << 8);
                                  BR = (BR & AR) & RMASK;
                                  if (BR != 0)
-                                     PC = (PC + 1) & RMASK;
+                                     kx10_pc = (kx10_pc + 1) & RMASK;
                                  sim_debug(DEBUG_CONI, &cpu_dev, "CONSO PI %012llo\n", AR);
                                  break;
 
@@ -11634,7 +11634,7 @@ io_fault:
                            }
                            BR &= 0177777;
                            if ((BR & MB) == 0)
-                               PC = (PC + 1) & RMASK;
+                               kx10_pc = (kx10_pc + 1) & RMASK;
                            AR = MB;
                            break;
 
@@ -11649,7 +11649,7 @@ io_fault:
                                goto io_fault;
                            BR &= 0177777;
                            if ((BR & MB) != 0)
-                               PC = (PC + 1) & RMASK;
+                               kx10_pc = (kx10_pc + 1) & RMASK;
                            AR = MB;
                            break;
 
@@ -11786,7 +11786,7 @@ its_wr:
                                goto io_fault;
                            BR &= 0377;
                            if ((BR & MB) == 0)
-                               PC = (PC + 1) & RMASK;
+                               kx10_pc = (kx10_pc + 1) & RMASK;
                            AR = MB;
                            break;
 
@@ -11801,7 +11801,7 @@ its_wr:
                                goto io_fault;
                            BR &= 0377;
                            if ((BR & MB) != 0)
-                               PC = (PC + 1) & RMASK;
+                               kx10_pc = (kx10_pc + 1) & RMASK;
                            break;
 
                   case 022:       /* RDIOB */
@@ -12067,7 +12067,7 @@ fetch_opr:
                               pi_ov = 1;
                           }
                           else if (!pi_cycle)
-                              PC = (PC + 1) & RMASK;
+                              kx10_pc = (kx10_pc + 1) & RMASK;
                           AR &= FMASK;
                           MB = AR;
                           if (Mem_write(pi_cycle, 0))
@@ -12151,13 +12151,13 @@ fetch_opr:
                           dev_tab[d](CONI|(d<<2), &AR);
                           AR &= AB;
                           if (AR == 0)
-                              PC = (PC + 1) & RMASK;
+                              kx10_pc = (kx10_pc + 1) & RMASK;
                           break;
                   case 7:     /* 34 CONSO */
                           dev_tab[d](CONI|(d<<2), &AR);
                           AR &= AB;
                           if (AR != 0)
-                              PC = (PC + 1) & RMASK;
+                              kx10_pc = (kx10_pc + 1) & RMASK;
                           break;
                   }
 #endif
@@ -12211,11 +12211,11 @@ last:
         trap_flag = (TRP1|TRP2);
         MB = (((uint64)(FLAGS) << 23) & LMASK);
         if (t20_page == 0)
-            MB |= (PC & RMASK);
+            MB |= (kx10_pc & RMASK);
         Mem_write_nopage();
         if (t20_page) {
             AB++;
-            MB = (PC & RMASK);
+            MB = (kx10_pc & RMASK);
             Mem_write_nopage();
         }
         AB++;
@@ -12232,7 +12232,7 @@ last:
             if (flag1)
                 FLAGS |= USERIO;
         }
-        PC = MB & RMASK;
+        kx10_pc = MB & RMASK;
         xct_flag = 0;
         f_load_pc = 1;
         f_inst_fetch = 1;
@@ -12270,11 +12270,11 @@ last:
             if ((FLAGS & USER) == 0)
                MB |= (uint64)(prev_sect & 037);
         } else
-            MB |= (PC & RMASK);
+            MB |= (kx10_pc & RMASK);
         Mem_write_nopage();
         AB++;
         if (QKLB && t20_page) {
-            MB = (((uint64)pc_sect) << 18) | (PC & RMASK);
+            MB = (((uint64)pc_sect) << 18) | (kx10_pc & RMASK);
             Mem_write_nopage();
             AB++;
         }
@@ -12295,7 +12295,7 @@ last:
             if (flag3)
                 FLAGS |= PRV_PUB;
         }
-        PC = MB & RMASK;
+        kx10_pc = MB & RMASK;
         if (QKLB && t20_page)
             pc_sect = (MB >> 18) & 07777;
         xct_flag = 0;
@@ -12336,7 +12336,7 @@ last:
 #else
     if (!f_pc_inh && !pi_cycle) {
 #endif
-        PC = (PC + 1) & RMASK;
+        kx10_pc = (kx10_pc + 1) & RMASK;
     }
 
 #if ITS
@@ -12357,7 +12357,7 @@ last:
         one_p_arm = 0;
         AB = ub_ptr + 0432;
         /* Save flags */
-        MB = (((uint64)(FLAGS) << 23) & LMASK) | (PC & RMASK);
+        MB = (((uint64)(FLAGS) << 23) & LMASK) | (kx10_pc & RMASK);
         Mem_write_nopage();
         /* Read in new PC and flags */
         AB ++;
@@ -12371,7 +12371,7 @@ last:
         if ((FLAGS & USER) == 0 && f) {
             FLAGS |= USERIO;
         }
-        PC = MB & RMASK;
+        kx10_pc = MB & RMASK;
     }
 #endif
 
@@ -13056,7 +13056,7 @@ do_extend(uint32 ia)
               }
               /* Skip if conditions match */
               if (f)
-                  PC = (PC + 1) & RMASK;
+                  kx10_pc = (kx10_pc + 1) & RMASK;
               return 0;
 
     case 004:  /* EDIT */
@@ -13330,7 +13330,7 @@ do_extend(uint32 ia)
                  }
                  set_reg(ext_ac, reg);
               }
-              PC = (PC + 1) & RMASK;
+              kx10_pc = (kx10_pc + 1) & RMASK;
               break;
 
     case 010:  /* CVTDBO */
@@ -13395,7 +13395,7 @@ do_extend(uint32 ia)
               }
               ARX &= CMASK;
               if ((get_reg(ext_ac) & MANT) == 0) {
-                  PC = (PC + 1) & RMASK;
+                  kx10_pc = (kx10_pc + 1) & RMASK;
                   if (get_reg(ext_ac) & BIT2) {
                       ARX = CCM(ARX) + 1;
                       AR = CM(AR) + ((ARX & SMASK) != 0);
@@ -13506,7 +13506,7 @@ do_extend(uint32 ia)
               set_reg(ext_ac+3, reg);
               set_reg(ext_ac, 0);
               set_reg(ext_ac+1, 0);
-              PC = (PC + 1) & RMASK;
+              kx10_pc = (kx10_pc + 1) & RMASK;
               break;
     case 014:  /* MOVSO */
     case 015:  /* MOVST */
@@ -13570,7 +13570,7 @@ do_extend(uint32 ia)
                   if (!store_byte(ext_ac+3, fill1, 1))
                      return 0;
               }
-              PC = (PC + 1) & RMASK;
+              kx10_pc = (kx10_pc + 1) & RMASK;
               break;
 
     case 017:  /* MOVSRJ */
@@ -13603,7 +13603,7 @@ do_extend(uint32 ia)
                       return 0;
                   }
               }
-              PC = (PC + 1) & RMASK;
+              kx10_pc = (kx10_pc + 1) & RMASK;
               break;
 
     case 020:  /* XBLT */

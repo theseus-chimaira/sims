@@ -893,11 +893,11 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
     switch(dev & 7) {
     case CONI:
         *data = channel_status;
-        sim_debug(DEBUG_CONI, &ai_dev, "DC0, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONI, &ai_dev, "DC0, PC=%06o %012llo\n", kx10_pc, *data);
         return SCPE_OK;
 
     case CONO:
-        sim_debug(DEBUG_CONO, &ai_dev, "DC0, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONO, &ai_dev, "DC0, PC=%06o %012llo\n", kx10_pc, *data);
         if ((*data & DCCSET) == DCCSET) {
           sim_debug(DEBUG_CMD, &ai_dev, "Reset controller then set selected.\n");
           ai_reset (&ai_dev);
@@ -923,12 +923,12 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
     case DATAI:
         *data = 0;
         sim_debug(DEBUG_DATAIO, &ai_dev, "DATAI DC0, PC=%06o %012llo\n",
-                  PC, *data);
+                  kx10_pc, *data);
         return SCPE_OK;
 
     case DATAO:
         sim_debug(DEBUG_DATAIO, &ai_dev, "DATAO DC0, PC=%06o %012llo\n",
-                  PC, *data);
+                  kx10_pc, *data);
         if (channel_status & (DSSRUN|DSSACT)) {
             sim_debug(DEBUG_EXP, &ai_dev, "DATAO when busy\n");
             channel_error (DDOBSY);
@@ -943,11 +943,11 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
         latency_timer %= 254;
         *data = (latency_timer << 022)
           | (latency_unit << 032) | channel_errors;
-        sim_debug(DEBUG_CONI, &ai_dev, "DC1, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONI, &ai_dev, "DC1, PC=%06o %012llo\n", kx10_pc, *data);
         return SCPE_OK;
 
     case CONO|4:
-        sim_debug(DEBUG_CONO, &ai_dev, "DC1, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONO, &ai_dev, "DC1, PC=%06o %012llo\n", kx10_pc, *data);
         sim_debug(DEBUG_CMD, &ai_dev, "Latency timer set to unit %llo\n", *data);
         latency_unit = *data & 7;
         return SCPE_OK;
@@ -955,12 +955,12 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
     case DATAI|4:
         *data = 0;
         sim_debug(DEBUG_DATAIO, &ai_dev, "DATAI DC1, PC=%06o %012llo\n",
-                  PC, *data);
+                  kx10_pc, *data);
         return SCPE_OK;
 
     case DATAO|4:
         sim_debug(DEBUG_DATAIO, &ai_dev, "DATAO DC1, PC=%06o %012llo\n",
-                  PC, *data);
+                  kx10_pc, *data);
         return SCPE_OK;
     }
     return SCPE_OK; /* Unreached */

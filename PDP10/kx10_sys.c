@@ -476,7 +476,7 @@ t_stat load_sblk (FILE *fileref)
     if ((word >> 27) != OP_JRST && (word >> 27) != OP_JUMPA)
         return SCPE_FMT;
 
-    PC = word & RMASK;
+    kx10_pc = word & RMASK;
 
     return SCPE_OK;
 }
@@ -568,7 +568,7 @@ t_stat load_rim (FILE *fileref)
             op = GET_OP (count);                        /* not IOWD */
             if (op != OP_JRST)                          /* JRST? */
                 return SCPE_FMT;
-            PC = (uint32) count & RMASK;                /* set PC */
+            kx10_pc = (uint32) count & RMASK;                /* set PC */
             break;
         }                                               /* end else */
     }                                                   /* end for */
@@ -626,7 +626,7 @@ t_stat load_sav (FILE *fileref, int ftype)
         pa = (uint32) (data & RMASK);
         if (wc == (OP_JRST << 9)) {
             sim_printf("Start addr=%06o\n", pa);
-            PC = pa;
+            kx10_pc = pa;
             return SCPE_OK;
         }
         while (wc != 0) {
@@ -751,9 +751,9 @@ t_stat load_exe (FILE *fileref, int ftype)
         }                                               /* end rpt */
     }                                                   /* end directory */
     if (entvec && entbuf[1])
-        PC = (int32) (entbuf[1] & RMASK);               /* start addr */
+        kx10_pc = (int32) (entbuf[1] & RMASK);               /* start addr */
     else if (entvec == 0)
-        PC = (int32) (M[0120] & RMASK);
+        kx10_pc = (int32) (M[0120] & RMASK);
     return SCPE_OK;
 }
 
@@ -816,7 +816,7 @@ t_stat load_exb (FILE *fileref, int ftype)
         if (addr > MEMSIZE)
             return SCPE_FMT;
         if (wc == 0) {
-            PC = addr;
+            kx10_pc = addr;
             return SCPE_OK;
         }
         pos = 0;
