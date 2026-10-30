@@ -677,7 +677,11 @@ if (sw & SWMASK ('C')) {
    n = 0;
    m = 0;
    for(i = 0; gbuf[i] != 0; i++) {
+#if defined(__ANDROID__)
+      int c = (signed char)ascii_to_mem[(unsigned char)gbuf[i] & 0177];
+#else
       char c = ascii_to_mem[(int)gbuf[i]];
+#endif
       if (c == -1)
          return SCPE_ARG;
       n |= c << x;
