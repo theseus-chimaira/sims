@@ -503,7 +503,11 @@ t_stat eth_mac_scan_ex (ETH_MAC mac, const char* strmac, UNIT *uptr)
 void eth_mac_fmt(const ETH_MAC mac, char* buff)
 {
   const uint8* m = (const uint8 *) mac;
-  sprintf(buff, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
+  #if defined(__OpenBSD__)
+  snprintf(buff, 18, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
+#else
+sprintf(buff, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
+#endif
 }
 
 static const uint32 crcTable[256] = {

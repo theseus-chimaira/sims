@@ -4475,7 +4475,7 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     else
         ++fn;                                   /* skip over slash or backslash */
     fn_cpy = (char *)malloc (strlen (fn) + 1);
-    strcpy (fn_cpy, fn);
+    memcpy (fn_cpy, fn, strlen(fn) + 1);
     fn = fn_cpy;
     ext = strrchr (fn_cpy, '.');
     if (ext) {
@@ -4747,7 +4747,13 @@ while (year >= 2000)
 
 fileday = 1000 * ((year - 70) % 100) + tm->tm_yday + 1;
 
-sprintf (FullPath, "%s%s", directory, filename);
+#if defined(__OpenBSD__)
+if (snprintf (FullPath, sizeof FullPath, "%s%s", directory, filename) >= (int)sizeof FullPath)
+    return;
+#else
+if (snprintf (FullPath, sizeof FullPath, "%s%s", directory, filename) >= (int)sizeof FullPath)
+    return;
+#endif
 f = tape_open_and_check_file (FullPath);
  if (f == NULL)
     return;
@@ -5058,7 +5064,8 @@ static void sim_tape_add_ansi_entry (const char *directory,
 MEMORY_TAPE *tape = (MEMORY_TAPE *)context;
 char FullPath[PATH_MAX + 1];
 
-sprintf (FullPath, "%s%s", directory, filename);
+if (snprintf (FullPath, sizeof FullPath, "%s%s", directory, filename) >= (int)sizeof FullPath)
+    return;
 
 (void)ansi_add_file_to_tape (tape, FullPath);
 }

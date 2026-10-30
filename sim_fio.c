@@ -907,7 +907,7 @@ if ((*shmem)->shm_name == NULL) {
     return SCPE_MEM;
     }
 
-sprintf ((*shmem)->shm_name, "%s%s", ((*name != '/') ? "/" : ""), name);
+snprintf ((*shmem)->shm_name, 1 + strlen(name) + ((*name != '/') ? 1 : 0), "%s%s", ((*name != '/') ? "/" : ""), name);
 (*shmem)->shm_base = MAP_FAILED;
 (*shmem)->shm_size = size;
 (*shmem)->shm_fd = shm_open ((*shmem)->shm_name, O_RDWR, 0);

@@ -6569,7 +6569,7 @@ struct simh_disk_footer *f = &footer;
 FILE *container;
 t_offset container_size;
 
-sprintf (FullPath, "%s%s", directory, filename);
+snprintf (FullPath, sizeof(FullPath), "%s%s", directory, filename);
 
 if (info->flag) {        /* zap type */
     struct stat statb;

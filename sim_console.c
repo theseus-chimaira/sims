@@ -972,7 +972,11 @@ if (action) {
         rem->act_buf = (char *)realloc (rem->act_buf, act_size);
         rem->act_buf_size = act_size;
         }
-    strcpy (rem->act_buf, action);              /* populate buffer */
+    #if defined(__OpenBSD__)
+    memcpy (rem->act_buf, action, act_size);
+#else
+    strcpy (rem->act_buf, action);
+#endif              /* populate buffer */
     rem->act = rem->act_buf;                    /* start at beginning of buffer */
     }
 else
@@ -1082,7 +1086,7 @@ if (stat == SCPE_OK) {
     else {
         if (rem->repeat_interval != 0) {
             rem->repeat_action = (char *)realloc (rem->repeat_action, 1 + strlen (cptr));
-            strcpy (rem->repeat_action, cptr);
+            memcpy (rem->repeat_action, cptr, strlen(cptr) + 1);
             cptr += strlen (cptr);
             stat = sim_activate_after (rem->uptr, rem->repeat_interval);
             }
@@ -1214,7 +1218,7 @@ else {
             cptr = comma + 1;
             }
         else {
-            strcpy (tbuf, cptr);
+            strlcpy (tbuf, cptr, sizeof(tbuf));
             cptr += strlen (cptr);
             }
         tptr = tbuf;

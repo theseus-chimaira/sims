@@ -4129,7 +4129,7 @@ if (flag >= 0) {                                        /* Only bump nesting fro
                     fclose (fpin);
                     return SCPE_MEM;
                     }
-                strcpy(sim_on_actions[sim_do_depth][i], sim_on_actions[sim_do_depth-1][i]);
+                memcpy(sim_on_actions[sim_do_depth][i], sim_on_actions[sim_do_depth-1][i], strlen(sim_on_actions[sim_do_depth-1][i]) + 1);
                 }
             }
         }
@@ -4150,7 +4150,7 @@ if (label) {
     sim_do_echo = echo;
     stat = goto_cmd (0, label);
     if (stat != SCPE_OK) {
-        strcpy(cbuf, "RETURN SCPE_ARG");
+        memcpy(cbuf, "RETURN SCPE_ARG", sizeof("RETURN SCPE_ARG"));
         cptr = get_glyph (cbuf, gbuf, 0);               /* get command glyph */
         cmdp = find_cmd (gbuf);                         /* return the errorStage things to the stat will be returned */
         goto Cleanup_Return;
@@ -4915,7 +4915,11 @@ for (; *ip && (op < oend); ) {
     }
 *op = 0;                                                /* term buffer */
 sim_sub_instr_off[outstr_off] = 0;
+#if defined(__OpenBSD__)
+memcpy (instr, tmpbuf, strlen (tmpbuf) + 1);
+#else
 strcpy (instr, tmpbuf);
+#endif
 free (tmpbuf);
 }
 
@@ -16310,12 +16314,12 @@ while (t->function_name) {
         char end_char_string[32];
 
         if (sim_isprint (d->end_char))
-            sprintf (end_char_string, "\'%c\'", d->end_char);
+            snprintf (end_char_string, sizeof(end_char_string), "\'%c\'", d->end_char);
         else
             if (d->end_char == '\0')
                 strcpy (end_char_string, "0");
             else
-                sprintf (end_char_string, "'\\%d'", d->end_char);
+                snprintf (end_char_string, sizeof(end_char_string), "'\\%d'", d->end_char);
         memset (gbuf, 0xFF, sizeof (gbuf));
         gbuf[sizeof (gbuf) - 1] = '\0';
         remainder = t->function (input, gbuf, d->end_char);
