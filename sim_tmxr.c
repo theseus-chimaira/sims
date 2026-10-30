@@ -1296,7 +1296,7 @@ for (i = 0; i < mp->lines; i++) {                       /* check each line in se
                             lp->sock = lp->connecting;          /* it now looks normal */
                             lp->connecting = 0;
                             lp->ipad = (char *)realloc (lp->ipad, 1+strlen (lp->destination));
-                            strcpy (lp->ipad, lp->destination);
+                            memcpy (lp->ipad, lp->destination, strlen(lp->destination) + 1);
                             lp->cnms = sim_os_msec ();
                             sim_getnames_sock (lp->sock, &sockname, &peername);
                             snprintf (msg, sizeof (msg) -1, "tmxr_poll_conn() - Outgoing Line Connection to %s (%s->%s) established", lp->destination, sockname, peername);
@@ -2033,7 +2033,7 @@ if (lp->serport) {
     }
 else {
     lp->serconfig = (char *)realloc (lp->serconfig, 1 + strlen (config));
-    strcpy (lp->serconfig, config);
+    memcpy (lp->serconfig, config, strlen(config) + 1);
     r = tmxr_set_line_speed (lp, lp->serconfig);;
     if (r != SCPE_OK) {
         free (lp->serconfig);
@@ -3327,7 +3327,7 @@ while (*tptr) {
                 }
             sim_messagef (SCPE_OK, "Listening on port %s\n", listen);
             mp->port = (char *)realloc (mp->port, 1 + strlen (listen));
-            strcpy (mp->port, listen);                      /* save port */
+            memcpy (mp->port, listen, strlen(listen) + 1);                      /* save port */
             mp->master = sock;                              /* save master socket */
             mp->ring_sock = INVALID_SOCKET;
             free (mp->ring_ipad);
@@ -3383,7 +3383,7 @@ while (*tptr) {
                     lp->mp->port = NULL;
                     }
                 lp->destination = (char *)malloc(1+strlen(destination));
-                strcpy (lp->destination, destination);
+                memcpy (lp->destination, destination, strlen(destination) + 1);
                 lp->mp = mp;
                 lp->serport = serport;
                 lp->ser_connect_pending = TRUE;
@@ -3400,7 +3400,7 @@ while (*tptr) {
                 if (datagram) {
                     if (listen[0]) {
                         lp->port = (char *)realloc (lp->port, 1 + strlen (listen));
-                        strcpy (lp->port, listen);           /* save port */
+                        memcpy (lp->port, listen, strlen(listen) + 1);           /* save port */
                         }
                     else
                         return sim_messagef (SCPE_ARG, "Missing listen port for Datagram socket\n");
@@ -3411,12 +3411,12 @@ while (*tptr) {
                 if (sock != INVALID_SOCKET) {
                     _mux_detach_line (lp, FALSE, TRUE);
                     lp->destination = (char *)malloc(1+strlen(hostport));
-                    strcpy (lp->destination, hostport);
+                    memcpy (lp->destination, hostport, strlen(hostport) + 1);
                     lp->mp = mp;
                     if (!lp->modem_control || (lp->modembits & TMXR_MDM_DTR)) {
                         lp->connecting = sock;
                         lp->ipad = (char *)malloc (1 + strlen (lp->destination));
-                        strcpy (lp->ipad, lp->destination);
+                        memcpy (lp->ipad, lp->destination, strlen(lp->destination) + 1);
                         }
                     else
                         sim_close_sock (sock);
@@ -3499,7 +3499,7 @@ while (*tptr) {
             sim_close_logfile (&lp->txlogref);
             lp->txlog = NULL;
             lp->txlogname = (char *)realloc (lp->txlogname, 1 + strlen (logfiletmpl));
-            strcpy (lp->txlogname, logfiletmpl);
+            memcpy (lp->txlogname, logfiletmpl, strlen(logfiletmpl) + 1);
             r = sim_open_logfile (lp->txlogname, TRUE, &lp->txlog, &lp->txlogref);
             if (r == SCPE_OK)
                 setvbuf(lp->txlog, NULL, _IOFBF, 65536);
@@ -3541,7 +3541,7 @@ while (*tptr) {
             _mux_detach_line (lp, TRUE, FALSE);
             sim_messagef (SCPE_OK, "Line %d Listening on port %s\n", line, listen);
             lp->port = (char *)realloc (lp->port, 1 + strlen (listen));
-            strcpy (lp->port, listen);                       /* save port */
+            memcpy (lp->port, listen, strlen(listen) + 1);                       /* save port */
             lp->master = sock;                              /* save master socket */
             if (listennotelnet != mp->notelnet)
                 lp->notelnet = listennotelnet;
@@ -3559,7 +3559,7 @@ while (*tptr) {
             if (serport != INVALID_HANDLE) {
                 _mux_detach_line (lp, TRUE, TRUE);
                 lp->destination = (char *)malloc(1+strlen(destination));
-                strcpy (lp->destination, destination);
+                memcpy (lp->destination, destination, strlen(destination) + 1);
                 lp->serport = serport;
                 lp->ser_connect_pending = TRUE;
                 lp->notelnet = TRUE;
@@ -3576,7 +3576,7 @@ while (*tptr) {
                     if (datagram) {
                         if (listen[0]) {
                             lp->port = (char *)realloc (lp->port, 1 + strlen (listen));
-                            strcpy (lp->port, listen);          /* save port */
+                            memcpy (lp->port, listen, strlen(listen) + 1);          /* save port */
                             }
                         else
                             return sim_messagef (SCPE_ARG, "Missing listen port for Datagram socket\n");
@@ -3586,11 +3586,11 @@ while (*tptr) {
                     if (sock != INVALID_SOCKET) {
                         _mux_detach_line (lp, FALSE, TRUE);
                         lp->destination = (char *)malloc(1+strlen(hostport));
-                        strcpy (lp->destination, hostport);
+                        memcpy (lp->destination, hostport, strlen(hostport) + 1);
                         if (!lp->modem_control || (lp->modembits & TMXR_MDM_DTR)) {
                             lp->connecting = sock;
                             lp->ipad = (char *)malloc (1 + strlen (lp->destination));
-                            strcpy (lp->ipad, lp->destination);
+                            memcpy (lp->ipad, lp->destination, strlen(lp->destination) + 1);
                             }
                         else
                             sim_close_sock (sock);

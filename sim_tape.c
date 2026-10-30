@@ -3930,55 +3930,55 @@ if (!p7b_parity_inited) {
 buf = (uint8 *)malloc (65536);
 if (buf == NULL)
     return SCPE_MEM;
-sprintf (name, "%s.simh", filename);
+snprintf (name, sizeof name, "%s.simh", filename);
 fSIMH = fopen (name, "wb");
 if (fSIMH  == NULL)
     goto Done_Files;
-sprintf (name, "%s.e11", filename);
+snprintf (name, sizeof name, "%s.e11", filename);
 fE11 = fopen (name, "wb");
 if (fE11  == NULL)
     goto Done_Files;
-sprintf (name, "%s.tpc", filename);
+snprintf (name, sizeof name, "%s.tpc", filename);
 fTPC = fopen (name, "wb");
 if (fTPC  == NULL)
     goto Done_Files;
-sprintf (name, "%s.p7b", filename);
+snprintf (name, sizeof name, "%s.p7b", filename);
 fP7B = fopen (name, "wb");
 if (fP7B  == NULL)
     goto Done_Files;
-sprintf (name, "%s.tar", filename);
+snprintf (name, sizeof name, "%s.tar", filename);
 fTAR = fopen (name, "wb");
 if (fTAR  == NULL)
     goto Done_Files;
-sprintf (name, "%s.2.tar", filename);
+snprintf (name, sizeof name, "%s.2.tar", filename);
 fTAR2 = fopen (name, "wb");
 if (fTAR2  == NULL)
     goto Done_Files;
-sprintf (name, "%s.aws", filename);
+snprintf (name, sizeof name, "%s.aws", filename);
 fAWS = fopen (name, "wb");
 if (fAWS  == NULL)
     goto Done_Files;
-sprintf (name, "%s.2.aws", filename);
+snprintf (name, sizeof name, "%s.2.aws", filename);
 fAWS2 = fopen (name, "wb");
 if (fAWS2  == NULL)
     goto Done_Files;
-sprintf (name, "%s.3.aws", filename);
+snprintf (name, sizeof name, "%s.3.aws", filename);
 fAWS3 = fopen (name, "wb");
 if (fAWS3  == NULL)
     goto Done_Files;
-sprintf (name, "%s.bin.fixed", filename);
+snprintf (name, sizeof name, "%s.bin.fixed", filename);
 fBIN = fopen (name, "wb");
 if (fBIN  == NULL)
     goto Done_Files;
-sprintf (name, "%s.txt.fixed", filename);
+snprintf (name, sizeof name, "%s.txt.fixed", filename);
 fTXT = fopen (name, "wb");
 if (fTXT  == NULL)
     goto Done_Files;
-sprintf (name, "%s.txt.ansi-var", filename);
+snprintf (name, sizeof name, "%s.txt.ansi-var", filename);
 fVAR = fopen (name, "wb");
 if (fVAR  == NULL)
     goto Done_Files;
-sprintf (name, "aws %s.aws.tape", filename);
+snprintf (name, sizeof name, "aws %s.aws.tape", filename);
 sim_switches = SWMASK ('F') | (sim_switches & SWMASK ('D')) | SWMASK ('N');
 if (sim_switches & SWMASK ('D'))
     uptr->dctrl = MTSE_DBG_STR | MTSE_DBG_DAT;
@@ -4135,8 +4135,8 @@ if (aws_stat == MTSE_OK)
 if (stat == SCPE_OK) {
     char name1[CBUFSIZE], name2[CBUFSIZE];
 
-    sprintf (name1, "\"%s.aws\"", filename);
-    sprintf (name2, "\"%s.aws.tape\"", filename);
+    snprintf (name1, sizeof name1, "\"%s.aws\"", filename);
+    snprintf (name2, sizeof name2, "\"%s.aws.tape\"", filename);
     sim_switches = SWMASK ('F');
     if (sim_cmp_string (name1, name2))
         stat = 1;
@@ -4153,12 +4153,12 @@ t_stat stat;
 
 if (recsize) {
     sim_switches |= SWMASK ('B');
-    sprintf (str_recsize, " %d", (int)recsize);
+    snprintf (str_recsize, sizeof str_recsize, " %d", (int)recsize);
     }
 if (NULL == strchr (filename, '*'))
-    sprintf (args, "%s%s %s.%s", format, str_recsize, filename, format);
+    snprintf (args, sizeof args, "%s%s %s.%s", format, str_recsize, filename, format);
 else
-    sprintf (args, "%s%s %s", format, str_recsize, filename);
+    snprintf (args, sizeof args, "%s%s %s", format, str_recsize, filename);
 sim_tape_detach (uptr);
 sim_switches |= SWMASK ('F') | SWMASK ('L');    /* specific-format and detailed record report */
 stat = sim_tape_attach_ex (uptr, args, 0, 0);
@@ -4414,11 +4414,11 @@ static void ansi_date (time_t datetime, char date[6], t_bool y2k_date_bug)
 
     lt = localtime (&datetime);
     if (y2k_date_bug)
-        sprintf (buf, " %c%c%03d", '0' + (lt->tm_year / 10),
+        snprintf (buf, sizeof buf, " %c%c%03d", '0' + (lt->tm_year / 10),
                                    '0' + (lt->tm_year % 10),
                                    lt->tm_yday + 1);
     else
-        sprintf (buf, "%c%02d%03d", (lt->tm_year < 100) ? ' ' : '0' + (lt->tm_year/100 - 1),
+        snprintf (buf, sizeof buf, "%c%02d%03d", (lt->tm_year < 100) ? ' ' : '0' + (lt->tm_year/100 - 1),
                                     lt->tm_year % 100,
                                     lt->tm_yday + 1);
     memcpy (date, buf, 6);

@@ -4579,15 +4579,15 @@ if (!ap) {                              /* no environment variable found? */
 
     /* ISO 8601 format date/time info */
     if (!strcmp ("DATE", gbuf)) {
-        sprintf (rbuf, "%4d-%02d-%02d", tmnow->tm_year+1900, tmnow->tm_mon+1, tmnow->tm_mday);
+        snprintf (rbuf, rbuf_size, "%4d-%02d-%02d", tmnow->tm_year+1900, tmnow->tm_mon+1, tmnow->tm_mday);
         ap = rbuf;
         }
     else if (!strcmp ("TIME", gbuf)) {
-        sprintf (rbuf, "%02d:%02d:%02d", tmnow->tm_hour, tmnow->tm_min, tmnow->tm_sec);
+        snprintf (rbuf, rbuf_size, "%02d:%02d:%02d", tmnow->tm_hour, tmnow->tm_min, tmnow->tm_sec);
         ap = rbuf;
         }
     else if (!strcmp ("DATETIME", gbuf)) {
-        sprintf (rbuf, "%04d-%02d-%02dT%02d:%02d:%02d", tmnow->tm_year+1900, tmnow->tm_mon+1, tmnow->tm_mday, tmnow->tm_hour, tmnow->tm_min, tmnow->tm_sec);
+        snprintf (rbuf, rbuf_size, "%04d-%02d-%02dT%02d:%02d:%02d", tmnow->tm_year+1900, tmnow->tm_mon+1, tmnow->tm_mday, tmnow->tm_hour, tmnow->tm_min, tmnow->tm_sec);
         ap = rbuf;
         }
     /* Locale oriented formatted date/time info */
@@ -4611,13 +4611,13 @@ if (!ap) {                              /* no environment variable found? */
 #if defined(HAVE_C99_STRFTIME)
         strftime (rbuf, rbuf_size, "%c", tmnow);
 #else
-        strcpy (rbuf, ctime(&now));
+        strlcpy (rbuf, ctime(&now), rbuf_size);
         rbuf[strlen (rbuf)-1] = '\0';    /* remove trailing \n */
 #endif
         ap = rbuf;
         }
     else if (!strcmp ("UTIME", gbuf)) {
-        sprintf (rbuf, "%" LL_FMT "d", (LL_TYPE)now);
+        snprintf (rbuf, rbuf_size, "%" LL_FMT "d", (LL_TYPE)now);
         ap = rbuf;
         }
     /* Separate Date/Time info */
@@ -4630,7 +4630,7 @@ if (!ap) {                              /* no environment variable found? */
         ap = rbuf;
         }
     else if (!strcmp ("DATE_YC", gbuf)) {/* Century (year/100) */
-        sprintf (rbuf, "%d", (tmnow->tm_year + 1900)/100);
+        snprintf (rbuf, rbuf_size, "%d", (tmnow->tm_year + 1900)/100);
         ap = rbuf;
         }
     else if ((!strcmp ("DATE_19XX_YY", gbuf)) || /* Year with same calendar */
@@ -4645,9 +4645,9 @@ if (!ap) {                              /* no environment variable found? */
         int cal_year = years[selector];
 
         if (!strcmp ("DATE_19XX_YY", gbuf))
-            sprintf (rbuf, "%d", cal_year);        /* 2 digit year */
+            snprintf (rbuf, rbuf_size, "%d", cal_year);        /* 2 digit year */
         else
-            sprintf (rbuf, "%d", cal_year + 1900); /* 4 digit year */
+            snprintf (rbuf, rbuf_size, "%d", cal_year + 1900); /* 4 digit year */
         ap = rbuf;
         }
     else if (!strcmp ("DATE_MM", gbuf)) {/* Month number (01-12) */
@@ -4667,7 +4667,7 @@ if (!ap) {                              /* no environment variable found? */
         ap = rbuf;
         }
     else if (!strcmp ("DATE_D", gbuf)) { /* ISO 8601 weekday number (1-7) */
-        sprintf (rbuf, "%d", (tmnow->tm_wday ? tmnow->tm_wday : 7));
+        snprintf (rbuf, rbuf_size, "%d", (tmnow->tm_wday ? tmnow->tm_wday : 7));
         ap = rbuf;
         }
     else if ((!strcmp ("DATE_WW", gbuf)) ||   /* ISO 8601 week number (01-53) */
@@ -4686,9 +4686,9 @@ if (!ap) {                              /* no environment variable found? */
                 iso_wk = 1;
                 }
         if (!strcmp ("DATE_WW", gbuf))
-            sprintf (rbuf, "%02d", iso_wk);
+            snprintf (rbuf, rbuf_size, "%02d", iso_wk);
         else
-            sprintf (rbuf, "%04d", iso_yr);
+            snprintf (rbuf, rbuf_size, "%04d", iso_yr);
         ap = rbuf;
         }
     else if (!strcmp ("DATE_JJJ", gbuf)) {/* day of year (001-366) */
@@ -4708,35 +4708,35 @@ if (!ap) {                              /* no environment variable found? */
         ap = rbuf;
         }
     else if (!strcmp ("TIME_MSEC", gbuf)) {/* Milliseconds of Second (000-999) */
-        sprintf (rbuf, "%03d", (int)(cmd_time.tv_nsec / 1000000));
+        snprintf (rbuf, rbuf_size, "%03d", (int)(cmd_time.tv_nsec / 1000000));
         ap = rbuf;
         }
     else if (!strcmp ("STATUS", gbuf)) {
-        sprintf (rbuf, "%08X", sim_last_cmd_stat);
+        snprintf (rbuf, rbuf_size, "%08X", sim_last_cmd_stat);
         ap = rbuf;
         }
     else if (!strcmp ("TSTATUS", gbuf)) {
         t_stat stat = SCPE_BARE_STATUS(sim_last_cmd_stat);
         if ((stat > SCPE_OK) && (stat < SCPE_BASE) && (sim_stop_messages[stat] != NULL))
-            sprintf (rbuf, "%s", sim_stop_messages[stat]);
+            snprintf (rbuf, rbuf_size, "%s", sim_stop_messages[stat]);
         else
-            sprintf (rbuf, "%s", sim_error_text (stat));
+            snprintf (rbuf, rbuf_size, "%s", sim_error_text (stat));
         ap = rbuf;
         }
     else if (!strcmp ("SIM_VERIFY", gbuf)) {
-        sprintf (rbuf, "%s", sim_do_echo ? "-V" : "");
+        snprintf (rbuf, rbuf_size, "%s", sim_do_echo ? "-V" : "");
         ap = rbuf;
         }
     else if (!strcmp ("SIM_VERBOSE", gbuf)) {
-        sprintf (rbuf, "%s", sim_do_echo ? "-V" : "");
+        snprintf (rbuf, rbuf_size, "%s", sim_do_echo ? "-V" : "");
         ap = rbuf;
         }
     else if (!strcmp ("SIM_QUIET", gbuf)) {
-        sprintf (rbuf, "%s", sim_quiet ? "-Q" : "");
+        snprintf (rbuf, rbuf_size, "%s", sim_quiet ? "-Q" : "");
         ap = rbuf;
         }
     else if (!strcmp ("SIM_MESSAGE", gbuf)) {
-        sprintf (rbuf, "%s", sim_show_message ? "" : "-Q");
+        snprintf (rbuf, rbuf_size, "%s", sim_show_message ? "" : "-Q");
         ap = rbuf;
         }
     }
@@ -5901,7 +5901,7 @@ else {
                 eptr = &sim_sub_instr[sim_sub_instr_off[cptr - sim_sub_instr_buf]]; /* get un-substituted string */
             cptr = sim_eval_expression (eptr, &val, FALSE, &stat);
             if (stat == SCPE_OK) {
-                sprintf (cbuf, "%ld", (long)val);
+                snprintf (cbuf, sizeof cbuf, "%ld", (long)val);
                 cptr = cbuf;
                 }
             else
@@ -6554,10 +6554,10 @@ if ((remfrac != 0.0) && (sim_switches & SWMASK ('R'))) {
     char *plast_char = &capac_buf[strlen (capac_buf) - 1];
     char save_char = *plast_char;
 
-    sprintf (plast_char, "%0.3f", remfrac);
+    snprintf (plast_char, sizeof capac_buf - (size_t)(plast_char - capac_buf), "%0.3f", remfrac);
     *plast_char = save_char;
     }
-sprintf (&capac_buf[strlen (capac_buf)], "%s%s", scale, width);
+snprintf (&capac_buf[strlen (capac_buf)], sizeof capac_buf - strlen (capac_buf), "%s%s", scale, width);
 return capac_buf;
 }
 
@@ -14021,7 +14021,7 @@ if ((stat == SCPE_OK) && (sim_quiet || (sim_switches & SWMASK ('Q'))))
     return stat;
 if (newline_prefix)
     ++fmt;
-sprintf (msg_prefix, "%s%%SIM-%s: ", newline_prefix ? (sim_is_running ? "\r\n" : "\n") : "", (stat == SCPE_OK) ? "INFO" : "ERROR");
+snprintf (msg_prefix, sizeof msg_prefix, "%s%%SIM-%s: ", newline_prefix ? (sim_is_running ? "\r\n" : "\n") : "", (stat == SCPE_OK) ? "INFO" : "ERROR");
 prefix_len = strlen (msg_prefix);
 while (1) {                                         /* format passed string, args */
     va_start (arglist, fmt);

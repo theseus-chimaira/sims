@@ -160,12 +160,12 @@ static char err_buf[512];
 for (i=0; (sock_errors[i].text) && (sock_errors[i].value != err); i++)
     ;
 if (sock_errors[i].value == err)
-    sprintf (err_buf, "Sockets: %s error %d - %s\n", emsg, err, sock_errors[i].text);
+    snprintf (err_buf, sizeof err_buf, "Sockets: %s error %d - %s\n", emsg, err, sock_errors[i].text);
 else
 #if defined(_WIN32)
-    sprintf (err_buf, "Sockets: %s error %d\n", emsg, err);
+    snprintf (err_buf, sizeof err_buf, "Sockets: %s error %d\n", emsg, err);
 #else
-    sprintf (err_buf, "Sockets: %s error %d - %s\n", emsg, err, strerror(err));
+    snprintf (err_buf, sizeof err_buf, "Sockets: %s error %d - %s\n", emsg, err, strerror(err));
 #endif
 return err_buf;
 }
@@ -1357,11 +1357,11 @@ if (peernamebuf)
 (void)getpeername (sock, (struct sockaddr *)&peername, &peernamesize);
 if (socknamebuf != NULL) {
     _sim_getaddrname ((struct sockaddr *)&sockname, (size_t)socknamesize, hostbuf, portbuf);
-    sprintf(*socknamebuf, "[%s]:%s", hostbuf, portbuf);
+    snprintf(*socknamebuf, NI_MAXHOST+NI_MAXSERV+4, "[%s]:%s", hostbuf, portbuf);
     }
 if (peernamebuf != NULL) {
     _sim_getaddrname ((struct sockaddr *)&peername, (size_t)peernamesize, hostbuf, portbuf);
-    sprintf(*peernamebuf, "[%s]:%s", hostbuf, portbuf);
+    snprintf(*peernamebuf, NI_MAXHOST+NI_MAXSERV+4, "[%s]:%s", hostbuf, portbuf);
     }
 return 0;
 }
