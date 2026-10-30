@@ -13704,7 +13704,7 @@ while (NULL != (eol = strchr (debug_line_buf, '\n')) || flush) {
         if (debug_line_count > 1) {
             char countstr[40];
 
-            sprintf (countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
+            snprintf (countstr, sizeof countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
             _debug_fwrite (debug_line_last_prefix, strlen (debug_line_last_prefix));
             _debug_fwrite (countstr, strlen (countstr));
             }
@@ -13743,7 +13743,7 @@ while (NULL != (eol = strchr (debug_line_buf, '\n')) || flush) {
                 if (debug_line_count > 1) {
                     char countstr[40];
 
-                    sprintf (countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
+                    snprintf (countstr, sizeof countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
                     _debug_fwrite (debug_line_last_prefix, strlen (debug_line_last_prefix));
                     _debug_fwrite (countstr, strlen (countstr));
                     }
@@ -13847,10 +13847,10 @@ if (sim_deb_switches & (SWMASK ('T') | SWMASK ('R') | SWMASK ('A'))) {
         time_t tnow = (time_t)time_now.tv_sec;
         struct tm *now = localtime(&tnow);
 
-        sprintf(tim_t, "%02d:%02d:%02d.%03d ", now->tm_hour, now->tm_min, now->tm_sec, (int)(time_now.tv_nsec/1000000));
+        snprintf(tim_t, sizeof tim_t, "%02d:%02d:%02d.%03d ", now->tm_hour, now->tm_min, now->tm_sec, (int)(time_now.tv_nsec/1000000));
         }
     if (sim_deb_switches & SWMASK ('A')) {
-        sprintf(tim_t, "%" LL_FMT "d.%03d ", (LL_TYPE)(time_now.tv_sec), (int)(time_now.tv_nsec/1000000));
+        snprintf(tim_t, sizeof tim_t, "%" LL_FMT "d.%03d ", (LL_TYPE)(time_now.tv_sec), (int)(time_now.tv_nsec/1000000));
         }
     }
 if (sim_deb_switches & SWMASK ('P')) {
@@ -13866,7 +13866,7 @@ if (sim_deb_switches & SWMASK ('P')) {
         val = (*sim_vm_pc_value)();
     else
         val = get_rval (sim_PC, 0);
-    sprintf(pc_s, "-%s:", sim_PC->name);
+    snprintf(pc_s, sizeof pc_s, "-%s:", sim_PC->name);
     sprint_val (&pc_s[strlen(pc_s)], val, sim_PC->radix, sim_PC->width, sim_PC->flags & REG_FMT);
     }
 snprintf(debug_line_prefix, sizeof debug_line_prefix, "DBG(%s%s%.0f%s)%s> %s %s: ", tim_t, tim_a, sim_gtime(), pc_s, AIO_MAIN_THREAD ? "" : "+", dptr->name, debug_type);
@@ -14266,11 +14266,11 @@ if (sim_deb && ((dptr->dctrl | (uptr ? uptr->dctrl : 0)) & reason)) {
                 same = 0;
                 }
             group = (((len - i) > 16) ? 16 : (len - i));
-            strcpy (ebcdicbuf, (sim_deb_switches & SWMASK ('E')) ? " EBCDIC:" : "");
+            strlcpy (ebcdicbuf, (sim_deb_switches & SWMASK ('E')) ? " EBCDIC:" : "", sizeof ebcdicbuf);
             eidx = strlen(ebcdicbuf);
-            strcpy (rad50buf, (sim_deb_switches & SWMASK ('D')) ? " RAD50:" : "");
+            strlcpy (rad50buf, (sim_deb_switches & SWMASK ('D')) ? " RAD50:" : "", sizeof rad50buf);
             ridx = strlen(rad50buf);
-            strcpy (strbuf, (sim_deb_switches & (SWMASK ('E') | SWMASK ('D'))) ? "ASCII:" : "");
+            strlcpy (strbuf, (sim_deb_switches & (SWMASK ('E') | SWMASK ('D'))) ? "ASCII:" : "", sizeof strbuf);
             soff = strlen(strbuf);
             for (sidx=oidx=0; sidx<group; ++sidx) {
                 outbuf[oidx++] = ' ';
@@ -14566,7 +14566,7 @@ for (hblock = astrings; (htext = *hblock) != NULL; hblock++) {
                             if (dptr) {
                                 char buf[129];
                                 n = uptr? uptr - dptr->units: 0;
-                                sprintf (buf, "%s%u", dptr->name, (int)n);
+                                snprintf (buf, sizeof buf, "%s%u", dptr->name, (int)n);
                                 appendText (topic, buf, strlen (buf));
                                 }
                             break;
@@ -14720,7 +14720,7 @@ for (hblock = astrings; (htext = *hblock) != NULL; hblock++) {
             n = strlen (newt->title);
             if (n > topic->kidwid)
                 topic->kidwid = n;
-            sprintf (nbuf, ".%u", topic->kids);
+            snprintf (nbuf, sizeof nbuf, ".%u", topic->kids);
             n = strlen (topic->label) + strlen (nbuf) + 1;
             newt->label = (char *) malloc (n);
             if (NULL == newt->label) {
@@ -14729,7 +14729,7 @@ for (hblock = astrings; (htext = *hblock) != NULL; hblock++) {
                 free (newt);
                 FAIL (SCPE_MEM, No memory, NULL);
                 }
-            sprintf (newt->label, "%s%s", topic->label, nbuf);
+            snprintf (newt->label, n, "%s%s", topic->label, nbuf);
             topic = newt;
             continue;
             } /* digits introducing a topic */
