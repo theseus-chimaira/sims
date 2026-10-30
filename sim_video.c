@@ -2672,9 +2672,9 @@ else {
 strncpy (name, _screenshot_filename, n);
 for (vptr = &vid_first; vptr != NULL; vptr = vptr->next) {
     if (vid_active > 1)
-        sprintf (name + n, "%d%s", i++, extension);
+        snprintf (name + n, strlen(_screenshot_filename) + 5 - n, "%d%s", i++, extension);
     else
-        sprintf (name + n, "%s", extension);
+        snprintf (name + n, strlen(_screenshot_filename) + 5 - n, "%s", extension);
     _screenshot_stat = _vid_screenshot (vptr, name);
     if (_screenshot_stat != SCPE_OK) {
         free (name);
