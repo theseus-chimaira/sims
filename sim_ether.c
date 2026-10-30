@@ -801,8 +801,8 @@ static const char* _eth_getname(int number, char* name, char *desc)
     return NULL;
     }
 
-  strcpy(name, list[number].name);
-  strcpy(desc, list[number].desc);
+  memcpy(name, list[number].name, strlen(list[number].name) + 1);
+  memcpy(desc, list[number].desc, strlen(list[number].desc) + 1);
   return name;
 }
 

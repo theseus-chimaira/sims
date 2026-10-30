@@ -1148,11 +1148,11 @@ if (strchr (parts, 't') ||      /* modification time or */
     memset (&filestat, 0, sizeof (filestat));
     (void)stat (fullpath, &filestat);
     if (sizeof (filestat.st_size) == 4)
-        sprintf (filesizebuf, "%ld ", (long)filestat.st_size);
+        snprintf (filesizebuf, sizeof filesizebuf, "%ld ", (long)filestat.st_size);
     else
-        sprintf (filesizebuf, "%" LL_FMT "d ", (LL_TYPE)filestat.st_size);
+        snprintf (filesizebuf, sizeof filesizebuf, "%" LL_FMT "d ", (LL_TYPE)filestat.st_size);
     tm = localtime (&filestat.st_mtime);
-    sprintf (filedatetimebuf, "%02d/%02d/%04d %02d:%02d %cM ", 1 + tm->tm_mon, tm->tm_mday, 1900 + tm->tm_year,
+    snprintf (filedatetimebuf, sizeof filedatetimebuf, "%02d/%02d/%04d %02d:%02d %cM ", 1 + tm->tm_mon, tm->tm_mday, 1900 + tm->tm_year,
                                                               tm->tm_hour % 12, tm->tm_min, (0 == (tm->tm_hour % 12)) ? 'A' : 'P');
     }
 for (p = parts; *p; p++) {

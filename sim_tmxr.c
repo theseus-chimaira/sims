@@ -559,17 +559,17 @@ char lmsg[80] = "";
 char msgbuf[512] = "";
 
 if (((!lp->notelnet) && (!lp->nomessage)) || (sim_switches & SWMASK ('V'))) {
-    sprintf (cmsg, "\n\r\nConnected to the %s simulator ", sim_name);
+    snprintf (cmsg, sizeof cmsg, "\n\r\nConnected to the %s simulator ", sim_name);
 
     if (mp->dptr) {                                     /* device defined? */
-        sprintf (dmsg, "%s device",                     /* report device name */
+        snprintf (dmsg, sizeof dmsg, "%s device",                     /* report device name */
                        sim_dname (mp->dptr));
 
         if (mp->lines > 1)                              /* more than one line? */
-            sprintf (lmsg, ", line %d", (int)(lp-mp->ldsc));/* report the line number */
+            snprintf (lmsg, sizeof lmsg, ", line %d", (int)(lp-mp->ldsc));/* report the line number */
         }
 
-    sprintf (msgbuf, "%s%s%s\r\n\n", cmsg, dmsg, lmsg);
+    snprintf (msgbuf, sizeof msgbuf, "%s%s%s\r\n\n", cmsg, dmsg, lmsg);
     }
 
 if (!mp->buffered) {

@@ -3423,7 +3423,7 @@ char unit_spec[50];
 uint32 unit, found_unit = 0;
 const char *gap = "  ";
 
-sprintf (header, "\n%s device SET commands:\n\n", dptr->name);
+snprintf (header, sizeof header, "\n%s device SET commands:\n\n", dptr->name);
 for (unit=0; unit < dptr->numunits; unit++)
     if (dptr->units[unit].flags & UNIT_DIS)
         --enabled_units;
@@ -3455,7 +3455,7 @@ if (dptr->modifiers) {
                     (strcasecmp (gbuf, "Show") == 0)) {
                     char *thelp = (char *)malloc (9 + strlen (rem));
 
-                    sprintf (thelp, "Specify %s", rem);
+                    snprintf (thelp, 9 + strlen(rem), "Specify %s", rem);
                     fprint_wrapped (st, buf, 30, gap, thelp, 80);
                     free (thelp);
                     }
@@ -3555,7 +3555,7 @@ if ((dptr->modifiers) && (dptr->units)) {   /* handle unit specific modifiers */
                     (strcasecmp (gbuf, "Show") == 0)) {
                     char *thelp = (char *)malloc (9 + strlen (rem));
 
-                    sprintf (thelp, "Specify %s", rem);
+                    snprintf (thelp, 9 + strlen(rem), "Specify %s", rem);
                     fprint_wrapped (st, buf, 30, gap, thelp, 80);
                     free (thelp);
                     }
@@ -3602,7 +3602,7 @@ char unit_spec[50];
 uint32 unit, found_unit = 0;
 const char *gap = "  ";
 
-sprintf (header, "\n%s device SHOW commands:\n\n", dptr->name);
+snprintf (header, sizeof header, "\n%s device SHOW commands:\n\n", dptr->name);
 for (unit=0; unit < dptr->numunits; unit++)
     if (dptr->units[unit].flags & UNIT_DIS)
         --enabled_units;
@@ -3621,20 +3621,20 @@ if (dptr->modifiers) {
         if ((!mptr->disp) || (!mptr->pstring) || !(*mptr->pstring))
             continue;
         fprint_header (st, &found, header);
-        sprintf (buf, "show %s %s%s", sim_dname (dptr), mptr->pstring, MODMASK(mptr,MTAB_SHP) ? "{=arg}" : "");
+        snprintf (buf, sizeof buf, "show %s %s%s", sim_dname (dptr), mptr->pstring, MODMASK(mptr,MTAB_SHP) ? "{=arg}" : "");
         fprint_wrapped (st, buf, 30, gap, mptr->help, 80);
         }
     }
 if ((dptr->flags & DEV_DEBUG) || (dptr->debflags)) {
     fprint_header (st, &found, header);
-    sprintf (buf, "show %s DEBUG", sim_dname (dptr));
-    sprintf (extra, "Displays debugging status for device %s", sim_dname (dptr));
+    snprintf (buf, sizeof buf, "show %s DEBUG", sim_dname (dptr));
+    snprintf (extra, sizeof extra, "Displays debugging status for device %s", sim_dname (dptr));
     fprint_wrapped (st, buf, 30, gap, extra, 80);
     }
 if (((dptr->flags & DEV_DEBUG) || (dptr->debflags)) &&
     ((DEV_TYPE(dptr) == DEV_DISK) || (DEV_TYPE(dptr) == DEV_TAPE))) {
-    sprintf (buf, "show %s DEBUG", unit_spec);
-    sprintf (extra, "Displays debugging status for device unit %s", unit_spec);
+    snprintf (buf, sizeof buf, "show %s DEBUG", unit_spec);
+    snprintf (extra, sizeof extra, "Displays debugging status for device unit %s", unit_spec);
     fprint_wrapped (st, buf, 30, gap, extra, 80);
     }
 
@@ -3645,7 +3645,7 @@ if ((dptr->modifiers) && (dptr->units)) {   /* handle unit specific modifiers */
         if ((!mptr->disp) || (!mptr->pstring))
             continue;
         fprint_header (st, &found, header);
-        sprintf (buf, "show %s %s%s", unit_spec, mptr->pstring, MODMASK(mptr,MTAB_SHP) ? "=arg" : "");
+        snprintf (buf, sizeof buf, "show %s %s%s", unit_spec, mptr->pstring, MODMASK(mptr,MTAB_SHP) ? "=arg" : "");
         fprint_wrapped (st, buf, 30, gap, mptr->help, 80);
         }
     }
@@ -5677,7 +5677,7 @@ else {
         cptr = &sim_sub_instr[sim_sub_instr_off[cptr - sim_sub_instr_buf]]; /* get un-substituted string */
     sim_on_actions[sim_do_depth][cond] =
         (char *)realloc(sim_on_actions[sim_do_depth][cond], 1+strlen(cptr));
-    strcpy(sim_on_actions[sim_do_depth][cond], cptr);
+    memcpy(sim_on_actions[sim_do_depth][cond], cptr, strlen(cptr) + 1);
     }
 return SCPE_OK;
 }
