@@ -1423,7 +1423,7 @@ const char *pcap_lib_version(void) {
   if ((load_pcap() != 0) && (p_pcap_lib_version != NULL)) {
     return p_pcap_lib_version();
   } else {
-    sprintf (buf, "%s not installed",
+    snprintf (buf, sizeof(buf), "%s not installed",
 #if defined(_WIN32)
         "npcap or winpcap"
 #else

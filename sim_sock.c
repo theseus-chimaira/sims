@@ -752,7 +752,7 @@ while ((*acl != '\0') && !done) {
     else {
         if (strlen (acl) >= sizeof (rule))
             break;                  /* Too big - error */
-        strcpy (rule, acl + 1);
+        strlcpy (rule, acl + 1, sizeof(rule));
         }
     acl += strlen (rule) + 1 + (cc != NULL);
     c = strchr (rule, '/');
