@@ -1322,7 +1322,7 @@ if (dir) {
 #if defined (HAVE_GLOB)
     for (i=0; i<paths.gl_pathc; i++) {
         FileName = (char *)malloc (1 + strlen (paths.gl_pathv[i]));
-        sprintf (FileName, "%s", paths.gl_pathv[i]);
+        memcpy (FileName, paths.gl_pathv[i], strlen(paths.gl_pathv[i]) + 1);
 #else /* !defined (HAVE_GLOB) */
     while ((ent = readdir (dir))) {
 #if defined (HAVE_FNMATCH)
@@ -1335,7 +1335,7 @@ if (dir) {
             continue;
 #endif /* defined (HAVE_FNMATCH) */
         FileName = (char *)malloc (1 + strlen (DirName) + strlen (ent->d_name));
-        sprintf (FileName, "%s%s", DirName, ent->d_name);
+        snprintf (FileName, 1 + strlen (DirName) + strlen (ent->d_name), "%s%s", DirName, ent->d_name);
 #endif /* defined (HAVE_GLOB) */
         p_name = FileName + strlen (DirName);
         memset (&filestat, 0, sizeof (filestat));

@@ -3744,7 +3744,7 @@ DEVICE *dptr = find_dev_from_unit (uptr);
 if (sim_deb && ((uptr->dctrl | dptr->dctrl) & reason)) {
     char pos[32];
 
-    sprintf (pos, "lbn: %08X ", (unsigned int)lba);
+    snprintf (pos, sizeof(pos), "lbn: %08X ", (unsigned int)lba);
     sim_data_trace(dptr, uptr, (detail ? data : NULL), pos, len, txt, reason);
     }
 }
@@ -5557,7 +5557,7 @@ static FILE *sim_vhd_disk_merge (const char *szVHDPath, char **ParentVHD)
         hVHD->File = NULL;
         (void)remove (szVHDPath);
         *ParentVHD = (char*) malloc (strlen (hVHD->ParentVHDPath)+1);
-        strcpy (*ParentVHD, hVHD->ParentVHDPath);
+        memcpy (*ParentVHD, hVHD->ParentVHDPath, strlen(hVHD->ParentVHDPath) + 1);
         }
 Cleanup_Return:
     free (BlockData);

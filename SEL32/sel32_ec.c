@@ -1605,12 +1605,12 @@ ipv4_inet_ntoa(struct in_addr ip)
    static char str[20];
 
    if (sim_end)
-       sprintf (str, "%d.%d.%d.%d", ip.s_addr & 0xFF,
+       snprintf (str, sizeof(str), "%d.%d.%d.%d", ip.s_addr & 0xFF,
                             (ip.s_addr >> 8) & 0xFF,
                             (ip.s_addr >> 16) & 0xFF,
                             (ip.s_addr >> 24) & 0xFF);
    else
-       sprintf (str, "%d.%d.%d.%d", (ip.s_addr >> 24) & 0xFF,
+       snprintf (str, sizeof(str), "%d.%d.%d.%d", (ip.s_addr >> 24) & 0xFF,
                             (ip.s_addr >> 16) & 0xFF,
                             (ip.s_addr >> 8) & 0xFF,
                              ip.s_addr & 0xFF);
@@ -1864,7 +1864,7 @@ t_stat ec_attach(UNIT* uptr, CONST char* cptr)
 
     tptr = (char *) malloc(strlen(cptr) + 1);
     if (tptr == NULL) return SCPE_MEM;
-    strcpy(tptr, cptr);
+    memcpy(tptr, cptr, strlen(cptr) + 1);
 
     eth_copy_mac(ec_data.macs[0], ec_data.mac);
     eth_copy_mac(ec_data.macs[1], broadcast_ethaddr);

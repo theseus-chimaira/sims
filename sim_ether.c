@@ -436,7 +436,7 @@ t_stat eth_mac_scan_ex (ETH_MAC mac, const char* strmac, UNIT *uptr)
       if (fgets (filebuf, sizeof(filebuf)-1, f)) {};
       strmac = filebuf;
       fclose (f);
-      strcpy (state.file, "");  /* avoid saving */
+      state.file[0] = '\0';  /* avoid saving */
       }
     }
   cptr = strchr (strmac, '/');

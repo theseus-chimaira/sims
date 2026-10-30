@@ -721,7 +721,7 @@ switch (MT_GET_FMT (uptr)) {
                 memory_tape_add_block (tape, NULL, 0);  /* Tape Mark */
                 uptr->flags |= UNIT_ATT;
                 uptr->filename = (char *)malloc (strlen (ocptr) + 1);
-                strcpy (uptr->filename, ocptr);
+                memcpy (uptr->filename, ocptr, strlen(ocptr) + 1);
                 uptr->tape_eom = tape->record_count;
                 }
             else {
@@ -839,7 +839,7 @@ switch (MT_GET_FMT (uptr)) {
                 memory_tape_add_block (tape, NULL, 0);  /* Tape Mark */
                 uptr->flags |= UNIT_ATT;
                 uptr->filename = (char *)malloc (strlen (cptr) + 1);
-                strcpy (uptr->filename, cptr);
+                memcpy (uptr->filename, cptr, strlen(cptr) + 1);
                 uptr->tape_eom = tape->record_count;
                 }
             }
@@ -877,7 +877,7 @@ switch (MT_GET_FMT (uptr)) {
                 memory_tape_add_block (tape, NULL, 0); /* Tape Mark */
                 uptr->flags |= UNIT_ATT;
                 uptr->filename = (char *)malloc (strlen (ocptr) + 1);
-                strcpy (uptr->filename, ocptr);
+                memcpy (uptr->filename, ocptr, strlen(ocptr) + 1);
                 uptr->tape_eom = tape->record_count;
                 }
             else {

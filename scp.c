@@ -4940,10 +4940,10 @@ if (sim_switches & SWMASK ('F')) {      /* File Compare? */
     char *filename1, *filename2;
 
     filename1 = (char *)malloc (strlen (s1));
-    strcpy (filename1, s1 + 1);
+    memcpy (filename1, s1 + 1, strlen(s1));
     filename1[strlen (filename1) - 1] = '\0';
     filename2 = (char *)malloc (strlen (s2));
-    strcpy (filename2, s2 + 1);
+    memcpy (filename2, s2 + 1, strlen(s2));
     filename2[strlen (filename2) - 1] = '\0';
 
     setenv ("_FILE_COMPARE_DIFF_OFFSET", "", 1);    /* Remove previous environment variable */
@@ -16567,7 +16567,7 @@ sim_switches = saved_switches;
 
 cptr = get_glyph (cptr, gbuf, 0);
 if (gbuf[0] == '\0')
-    strcpy (gbuf, "ALL");
+    memcpy (gbuf, "ALL", sizeof("ALL"));
 if ((strcmp (gbuf, "ALL") != 0) && (strcmp (gbuf, "SCP") != 0)) {
     if (!find_dev (gbuf))
         return sim_messagef (SCPE_ARG, "No such device: %s\n", gbuf);
