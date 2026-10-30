@@ -917,7 +917,7 @@ if (tptr == NULL)                                       /* no more mem? */
     return tptr;
 
 if (mp->port) {                                         /* copy port */
-    sprintf (growstring(&tptr, 33 + strlen (mp->port)), "%s%s", mp->port,
+    snprintf (growstring(&tptr, 33 + strlen (mp->port)), 33 + strlen (mp->port), "%s%s", mp->port,
                                                                 mp->notelnet ? ";notelnet" :
                                                                                (mp->nomessage ? ";nomessage" :
                                                                                                 ""));
@@ -927,14 +927,14 @@ if (mp->port) {                                         /* copy port */
 
         while (*c != '\0') {
             c = get_glyph_nc (c, gbuf, ',');
-            sprintf (growstring(&tptr, 9 + strlen (gbuf)), ";%s=%s", (gbuf[0] == '+') ? "Accept" : "Reject", gbuf + 1);
+            snprintf (growstring(&tptr, 9 + strlen (gbuf)), 9 + strlen (gbuf), ";%s=%s", (gbuf[0] == '+') ? "Accept" : "Reject", gbuf + 1);
             }
         }
     }
 if (mp->logfiletmpl[0])                                 /* logfile info */
-    sprintf (growstring(&tptr, 7 + strlen (mp->logfiletmpl)), ",Log=%s", mp->logfiletmpl);
+    snprintf (growstring(&tptr, 7 + strlen (mp->logfiletmpl)), 7 + strlen (mp->logfiletmpl), ",Log=%s", mp->logfiletmpl);
 if (mp->buffered)
-    sprintf (growstring(&tptr, 10 + 10), ",Buffered=%d", mp->buffered);
+    snprintf (growstring(&tptr, 10 + 10), 10 + 10, ",Buffered=%d", mp->buffered);
 while ((*tptr == ',') || (*tptr == ' '))
     memmove (tptr, tptr+1, strlen(tptr+1)+1);
 for (i=0; i<mp->lines; ++i) {
@@ -943,7 +943,7 @@ for (i=0; i<mp->lines; ++i) {
 
     lptr = tmxr_line_attach_string(lp);
     if (lptr) {
-        sprintf (growstring(&tptr, 10+strlen(lptr)), "%s%s", *tptr ? "," : "", lptr);
+        snprintf (growstring(&tptr, 10+strlen(lptr)), 10+strlen(lptr), "%s%s", *tptr ? "," : "", lptr);
         free (lptr);
         }
     }
@@ -986,21 +986,21 @@ if (tptr == NULL)                                       /* no more mem? */
 
 if (lp->destination || lp->port || lp->txlogname || (lp->conn == TMXR_LINE_DISABLED)) {
     if ((lp->mp->lines > 1) || (lp->port))
-        sprintf (growstring(&tptr, 32), "Line=%d", (int)(lp-lp->mp->ldsc));
+        snprintf (growstring(&tptr, 32), 32, "Line=%d", (int)(lp-lp->mp->ldsc));
     if (lp->conn == TMXR_LINE_DISABLED)
-        sprintf (growstring(&tptr, 32), ",Disabled");
+        snprintf (growstring(&tptr, 32), 32, ",Disabled");
     if (lp->modem_control != lp->mp->modem_control)
-        sprintf (growstring(&tptr, 32), ",%s", lp->modem_control ? "Modem" : "NoModem");
+        snprintf (growstring(&tptr, 32), 32, ",%s", lp->modem_control ? "Modem" : "NoModem");
     if (lp->txbfd && (lp->txbsz != lp->mp->buffered))
-        sprintf (growstring(&tptr, 32), ",Buffered=%d", lp->txbsz);
+        snprintf (growstring(&tptr, 32), 32, ",Buffered=%d", lp->txbsz);
     if (!lp->txbfd && (lp->mp->buffered > 0))
-        sprintf (growstring(&tptr, 32), ",UnBuffered");
+        snprintf (growstring(&tptr, 32), 32, ",UnBuffered");
     if (lp->mp->datagram != lp->datagram)
-        sprintf (growstring(&tptr, 8), ",%s", lp->datagram ? "UDP" : "TCP");
+        snprintf (growstring(&tptr, 8), 8, ",%s", lp->datagram ? "UDP" : "TCP");
     if (lp->mp->packet != lp->packet)
-        sprintf (growstring(&tptr, 8), ",Packet");
+        snprintf (growstring(&tptr, 8), 8, ",Packet");
     if (lp->port) {
-        sprintf (growstring(&tptr, 32 + strlen (lp->port)), ",%s%s%s", lp->port,
+        snprintf (growstring(&tptr, 32 + strlen (lp->port)), 32 + strlen (lp->port), ",%s%s%s", lp->port,
                                                                        ((lp->mp->notelnet != lp->notelnet) && (!lp->datagram)) ? (lp->notelnet ? ";notelnet" : ";telnet") : "",
                                                                        ((lp->mp->nomessage != lp->nomessage) && (!lp->datagram)) ? (lp->nomessage ? ";nomessage" : ";message") : "");
         if (lp->acl) {                                      /* copy acl in pieces */
@@ -1009,7 +1009,7 @@ if (lp->destination || lp->port || lp->txlogname || (lp->conn == TMXR_LINE_DISAB
 
             while (*c != '\0') {
                 c = get_glyph_nc (c, gbuf, ',');
-                sprintf (growstring(&tptr, 9 + strlen (gbuf)), ";%s=%s", (gbuf[0] == '+') ? "Accept" : "Reject", gbuf + 1);
+                snprintf (growstring(&tptr, 9 + strlen (gbuf)), 9 + strlen (gbuf), ";%s=%s", (gbuf[0] == '+') ? "Accept" : "Reject", gbuf + 1);
                 }
             }
         }
@@ -1018,15 +1018,15 @@ if (lp->destination || lp->port || lp->txlogname || (lp->conn == TMXR_LINE_DISAB
             char portname[CBUFSIZE];
 
             get_glyph_nc (lp->destination, portname, ';');
-            sprintf (growstring(&tptr, 25 + strlen (lp->destination)), ",Connect=%s%s%s", portname, strcmp("9600-8N1", lp->serconfig ? lp->serconfig : "") ? ";" : "", strcmp("9600-8N1", lp->serconfig ? lp->serconfig : "") ? lp->serconfig : "");
+            snprintf (growstring(&tptr, 25 + strlen (lp->destination)), 25 + strlen (lp->destination), ",Connect=%s%s%s", portname, strcmp("9600-8N1", lp->serconfig ? lp->serconfig : "") ? ";" : "", strcmp("9600-8N1", lp->serconfig ? lp->serconfig : "") ? lp->serconfig : "");
             }
         else
-            sprintf (growstring(&tptr, 25 + strlen (lp->destination)), ",Connect=%s%s", lp->destination, ((lp->mp->notelnet != lp->notelnet) && (!lp->datagram)) ? (lp->notelnet ? ";notelnet" : ";telnet") : "");
+            snprintf (growstring(&tptr, 25 + strlen (lp->destination)), 25 + strlen (lp->destination), ",Connect=%s%s", lp->destination, ((lp->mp->notelnet != lp->notelnet) && (!lp->datagram)) ? (lp->notelnet ? ";notelnet" : ";telnet") : "");
         }
     if (lp->txlogname)
-        sprintf (growstring(&tptr, 12 + strlen (lp->txlogname)), ",Log=%s", lp->txlogname);
+        snprintf (growstring(&tptr, 12 + strlen (lp->txlogname)), 12 + strlen (lp->txlogname), ",Log=%s", lp->txlogname);
     if (lp->loopback)
-        sprintf (growstring(&tptr, 12 ), ",Loopback");
+        snprintf (growstring(&tptr, 12 ), 12 , ",Loopback");
     }
 if (*tptr == '\0') {
     free (tptr);
