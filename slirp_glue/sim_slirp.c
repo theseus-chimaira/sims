@@ -184,7 +184,7 @@ int err;
 slirp_dptr = dptr;
 slirp_dbit = dbit;
 slirp->args = (char *)g_malloc0(1 + strlen(args));
-strcpy (slirp->args, args);
+memcpy (slirp->args, args, strlen(args) + 1);
 slirp->opaque = opaque;
 slirp->callback = callback;
 slirp->maskbits = 24;
@@ -343,7 +343,7 @@ else {
     do {
         if ((rnd_val & 0xFFFF) == 0)
             ++rnd_val;
-        sprintf (db_host, "localhost:%d", (int)(rnd_val & 0xFFFF));
+        snprintf (db_host, sizeof(db_host), "localhost:%d", (int)(rnd_val & 0xFFFF));
         slirp->db_chime  = sim_connect_sock_ex (db_host, db_host, NULL, NULL, SIM_SOCK_OPT_DATAGRAM | SIM_SOCK_OPT_BLOCKING);
         } while (slirp->db_chime == INVALID_SOCKET);
     memset (&pfd, 0, sizeof (pfd));

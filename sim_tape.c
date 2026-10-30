@@ -3495,7 +3495,7 @@ static char msgbuf[64];
 
 if (stat <= MTSE_MAX_ERR)
     return mtse_errors[stat];
-sprintf(msgbuf, "Error %d", stat);
+snprintf(msgbuf, sizeof(msgbuf), "Error %d", stat);
 return msgbuf;
 }
 
@@ -4770,7 +4770,7 @@ if (ptr != NULL)
 if (fname[0] == ' ') {
   char temp[10];
 
-  sprintf(temp, "%06u   ", tape->file_count % 100000);
+  snprintf(temp, sizeof(temp), "%06u   ", tape->file_count % 100000);
   memcpy(fname, temp, sizeof(fname));
 }
 

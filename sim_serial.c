@@ -245,8 +245,8 @@ for (i=0; i<serial_open_device_count; ++i) {
         continue;
     if (ports >= max)
         break;
-    strcpy(list[ports].name, serial_open_devices[i].name);
-    strcpy(list[ports].desc, serial_open_devices[i].config);
+    strlcpy(list[ports].name, serial_open_devices[i].name, sizeof(list[ports].name));
+    strlcpy(list[ports].desc, serial_open_devices[i].config, sizeof(list[ports].desc));
     ++ports;
     }
 if (ports) /* Order the list returned alphabetically by the port name */
@@ -261,7 +261,7 @@ int count = sim_serial_devices(SER_MAX_DEVICE, list);
 
 if (count <= number)
     return NULL;
-strcpy(name, list[number].name);
+strlcpy(name, list[number].name, 1024);
 return name;
 }
 
@@ -285,7 +285,7 @@ for (i=0; i<count; i++) {
         continue;
 
     /* found a case-insensitive description match */
-    strcpy(name, list[i].name);
+    strlcpy(name, list[i].name, 1024);
     return name;
     }
 /* not found */
@@ -305,7 +305,7 @@ for (i=0; i<count && !found; i++) {
     if ((n == strlen(list[i].name)) &&
         (strncasecmp(name, list[i].name, n) == 0)) {
         found = 1;
-        strcpy(temp, list[i].name); /* only case might be different */
+        strlcpy(temp, list[i].name, 1024); /* only case might be different */
         }
     }
 return (found ? temp : NULL);
@@ -324,7 +324,7 @@ for (i=0; i<count && !found; i++) {
     if ((n == strlen(list[i].name)) &&
         (strncasecmp(name, list[i].name, n) == 0)) {
         found = 1;
-        strcpy(temp, list[i].desc);
+        strlcpy(temp, list[i].desc, SER_DEV_DESC_MAX);
         }
     }
   return (found ? temp : NULL);
@@ -438,7 +438,7 @@ if (status != SCPE_OK) {                                /* port configuration er
 
 if ((port != INVALID_HANDLE) && (*config) && (lp)) {
     lp->serconfig = (char *)realloc (lp->serconfig, 1 + strlen (config));
-    strcpy (lp->serconfig, config);
+    memcpy (lp->serconfig, config, strlen(config) + 1);
     }
 if (port != INVALID_HANDLE)
     _serial_add_to_open_list (port, lp, savname, config);
@@ -489,7 +489,7 @@ r = sim_config_os_serial (port, config);
 dev = _get_open_device (port);
 if (dev) {
     dev->line->serconfig = (char *)realloc (dev->line->serconfig, 1 + strlen (sconfig));
-    strcpy (dev->line->serconfig, sconfig);
+    memcpy (dev->line->serconfig, sconfig, strlen(sconfig) + 1);
     }
 return r;
 }

@@ -715,9 +715,9 @@ static t_stat vid_init_window (VID_DISPLAY *vptr, DEVICE *dptr, const char *titl
 t_stat stat;
 
 if ((strlen(sim_name) + 7 + (dptr ? strlen (dptr->name) : 0) + (title ? strlen (title) : 0)) < sizeof (vptr->vid_title))
-    sprintf (vptr->vid_title, "%s%s%s%s%s", sim_name, dptr ? " - " : "", dptr ? dptr->name : "", title ? " - " : "", title ? title : "");
+    snprintf (vptr->vid_title, sizeof(vptr->vid_title), "%s%s%s%s%s", sim_name, dptr ? " - " : "", dptr ? dptr->name : "", title ? " - " : "", title ? title : "");
 else
-    sprintf (vptr->vid_title, "%s", sim_name);
+    snprintf (vptr->vid_title, sizeof(vptr->vid_title), "%s", sim_name);
 vptr->vid_flags = flags;
 vptr->vid_active_window = TRUE;
 vptr->vid_width = width;

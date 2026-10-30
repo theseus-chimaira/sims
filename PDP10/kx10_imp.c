@@ -1516,7 +1516,7 @@ imp_packet_in(struct imp_device *imp)
                           if (tcp_payload[i] == ',')
                              nlen++;
                        }
-                       nlen = sprintf(port_buffer, "PORT %d,%d,%d,%d,",
+                       nlen = snprintf(port_buffer, sizeof(port_buffer), "PORT %d,%d,%d,%d,",
                             (nip >> 24) & 0xFF, (nip >> 16) & 0xFF,
                             (nip >> 8) & 0xFF, nip & 0xff);
                        /* Copy over rest of string */
@@ -1765,7 +1765,7 @@ imp_packet_out(struct imp_device *imp, ETH_PACK *packet) {
                   if (tcp_payload[i] == ',')
                      nlen++;
                }
-               nlen = sprintf(port_buffer, "PORT %d,%d,%d,%d,",
+               nlen = snprintf(port_buffer, sizeof(port_buffer), "PORT %d,%d,%d,%d,",
                     (nip >> 24) & 0xFF, (nip >> 16) & 0xFF,
                     (nip >> 8) & 0xFF, nip&0xff);
                /* Copy over rest of string */
@@ -2866,10 +2866,10 @@ ipv4_inet_ntoa(struct in_addr ip)
    static char str[20];
 
    if (sim_end)
-       sprintf (str, "%d.%d.%d.%d", ip.s_addr & 0xFF, (ip.s_addr >> 8) & 0xFF,
+       snprintf (str, sizeof(str), "%d.%d.%d.%d", ip.s_addr & 0xFF, (ip.s_addr >> 8) & 0xFF,
                               (ip.s_addr >> 16) & 0xFF, (ip.s_addr >> 24) & 0xFF);
    else
-       sprintf (str, "%d.%d.%d.%d", (ip.s_addr >> 24) & 0xFF, (ip.s_addr >> 16) & 0xFF,
+       snprintf (str, sizeof(str), "%d.%d.%d.%d", (ip.s_addr >> 24) & 0xFF, (ip.s_addr >> 16) & 0xFF,
                               (ip.s_addr >> 8) & 0xFF, ip.s_addr & 0xFF);
    return str;
 }
@@ -3152,7 +3152,7 @@ t_stat imp_attach(UNIT* uptr, CONST char* cptr)
 
     tptr = (char *) malloc(strlen(cptr) + 1);
     if (tptr == NULL) return SCPE_MEM;
-    strcpy(tptr, cptr);
+    memcpy(tptr, cptr, strlen(cptr) + 1);
 
     memset(&imp_data.ReadQ, 0, sizeof(ETH_QUE));
     status = eth_open(&imp_data.etherface, cptr, &imp_dev, DEBUG_ETHER);

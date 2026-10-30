@@ -90,7 +90,7 @@ if (str) {
     nstr = (gchar *)malloc (strlen(str)+1);
     if (!nstr)
         exit (errno);
-    strcpy (nstr, str);
+    memcpy (nstr, str, strlen(str) + 1);
     }
 return nstr;
 }

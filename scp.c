@@ -2783,7 +2783,7 @@ for (i = 1; i < argc; i++) {                            /* loop thru args */
             }
         if (*cbuf)                                      /* concat args */
             strlcat (cbuf, " ", sizeof (cbuf));
-        sprintf(&cbuf[strlen(cbuf)], "%s%s%s", strchr(argv[i], ' ') ? "\"" : "", argv[i], strchr(argv[i], ' ') ? "\"" : "");
+        snprintf(&cbuf[strlen(cbuf)], sizeof(cbuf) - strlen(cbuf), "%s%s%s", strchr(argv[i], ' ') ? "\"" : "", argv[i], strchr(argv[i], ' ') ? "\"" : "");
         first_arg = i;
         lookswitch = FALSE;                             /* no more switches */
         }
@@ -2818,7 +2818,7 @@ for (i = 0; cmd_table[i].name; i++) {
     char *env_cmd_val;
     size_t env_cmd_val_len;
 
-    strcpy (cmd_name, cmd_table[i].name);
+    memcpy (cmd_name, cmd_table[i].name, alias_len + 1);
     while (alias_len > 1) {
         cmd_name[alias_len] = '\0';                 /* Possible short form command name */
         --alias_len;
@@ -2828,7 +2828,7 @@ for (i = 0; cmd_table[i].name; i++) {
             ++sim_external_env_count;
             sim_external_env = (struct deleted_env_var *)realloc (sim_external_env, sim_external_env_count * sizeof (*sim_external_env));
             sim_external_env[sim_external_env_count - 1].name = (char *)malloc (1 + strlen (cmd_name));
-            strcpy (sim_external_env[sim_external_env_count - 1].name, cmd_name);
+            memcpy (sim_external_env[sim_external_env_count - 1].name, cmd_name, strlen (cmd_name) + 1);
             sim_external_env[sim_external_env_count - 1].value = (char *)malloc (1 + env_cmd_val_len);
             strlcpy (sim_external_env[sim_external_env_count - 1].value, env_cmd_val, 1 + env_cmd_val_len);
             unsetenv (cmd_name);                    /* Remove it to protect against possibly malicious aliases */
@@ -3104,7 +3104,7 @@ if (gbuf[0] == '\0') {                                  /* Token started with qu
         *gptr = '\0';
     }
 sim_prompt = (char *)realloc (sim_prompt, strlen (gbuf) + 2);   /* nul terminator and trailing blank */
-sprintf (sim_prompt, "%s ", gbuf);
+snprintf (sim_prompt, strlen (gbuf) + 2, "%s ", gbuf);
 return SCPE_OK;
 }
 
@@ -6642,11 +6642,11 @@ const char *arch = "";
 #define S_str(a) #a
 if (cptr && (*cptr != 0))
     return SCPE_2MARG;
-sprintf (vmaj_s, "%d", vmaj);
+snprintf (vmaj_s, sizeof(vmaj_s), "%d", vmaj);
 setenv ("SIM_MAJOR", vmaj_s, 1);
-sprintf (vmin_s, "%d", vmin);
+snprintf (vmin_s, sizeof(vmin_s), "%d", vmin);
 setenv ("SIM_MINOR", vmin_s, 1);
-sprintf (vpat_s, "%d", vpat);
+snprintf (vpat_s, sizeof(vpat_s), "%d", vpat);
 setenv ("SIM_PATCH", vpat_s, 1);
 fprintf (st, "%s simulator Open SIMH V%d.%d-%d", sim_name, vmaj, vmin, vpat);
 if (sim_vm_release != NULL) {                           /* if a release string is defined */
@@ -6654,7 +6654,7 @@ if (sim_vm_release != NULL) {                           /* if a release string i
     fprintf (st, " Release %s", sim_vm_release);        /*   then display it */
     }
 if (vdelt) {
-    sprintf (vdelt_s, "%d", vdelt);
+    snprintf (vdelt_s, sizeof(vdelt_s), "%d", vdelt);
     setenv ("SIM_DELTA", vdelt_s, 1);
     fprintf (st, " delta %d", vdelt);
     }
@@ -11756,7 +11756,7 @@ if (NULL == buffer)
 *buffer = '\0';
 if (width < strlen(dbuf+d))
     return SCPE_IOERR;
-strcpy(buffer, dbuf+d);
+memcpy(buffer, dbuf+d, strlen(dbuf+d) + 1);
 return SCPE_OK;
 }
 
@@ -12813,7 +12813,7 @@ if (action) {
         }
     else {
         sim_brk_act_buf[sim_do_depth] = (char *)realloc (sim_brk_act_buf[sim_do_depth], strlen (action) + 1);
-        strcpy (sim_brk_act_buf[sim_do_depth], action);
+        memcpy (sim_brk_act_buf[sim_do_depth], action, strlen(action) + 1);
         sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_setact(%d) - Set to: '%s'\n", sim_do_depth, action);
         }
     sim_brk_act[sim_do_depth] = sim_brk_act_buf[sim_do_depth];
@@ -13567,7 +13567,7 @@ if (stat == SCPE_OK)
     return "No Error";
 if ((stat >= SCPE_BASE) && (stat <= SCPE_MAX_ERR))
     return scp_errors[stat-SCPE_BASE].message;
-sprintf(msgbuf, "Error %d", stat);
+snprintf(msgbuf, sizeof(msgbuf), "Error %d", stat);
 return msgbuf;
 }
 
@@ -15236,13 +15236,13 @@ if (fp == NULL) {
                 }
             }
         if (p && (strlen (fbuf) + strlen (helpfile) +1) <= sizeof (fbuf)) {
-            strcat (fbuf, helpfile);
+            strlcat (fbuf, helpfile, sizeof (fbuf));
             fp = sim_fopen (fbuf, "r");
             }
         if (!fp && p && (strlen (fbuf) + strlen (d) + sizeof ("help") +
                           strlen (helpfile) +1) <= sizeof (fbuf)) {
-            sprintf (p+1, d, "help");
-            strcat (p+1, helpfile);
+            snprintf (p+1, sizeof (fbuf) - (size_t)(p+1-fbuf), d, "help");
+            strlcat (fbuf, helpfile, sizeof (fbuf));
             fp = sim_fopen (fbuf, "r");
             }
         }

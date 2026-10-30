@@ -1090,7 +1090,7 @@ if ((filepath[1] == ':')  ||
         fullpath = (char *)malloc (tot_len);
         if (fullpath == NULL)
             return NULL;
-        strcpy (fullpath, filepath);
+        memcpy (fullpath, filepath, tot_len);
     }
 else {          /* Need to prepend current directory */
     char dir[PATH_MAX+1] = "";

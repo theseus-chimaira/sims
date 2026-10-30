@@ -329,31 +329,31 @@ char *dump_mem(uint32 mp, int cnt)
 
     while (bp < bl) {
         if (!bp) {
-            cc = sprintf(cp, " %06x : ", ma);    /* output location address */
+            cc = snprintf(cp, sizeof(line) - (size_t)(cp - line), " %06x : ", ma);    /* output location address */
             cp += cc;                           /* next print location */
         }
         ch = RMB(ma) & 0xff;                    /* get a char from memory */
         ma++;                                   /* next loc */
-        cc += sprintf(cp, "%02x", ch);          /* print out current char */
+        cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), "%02x", ch);          /* print out current char */
         cp += 2;                                /* next print location */
         buff[bp++] = PRINTABLE(ch);             /* get printable version of char */
         if (!(bp % 4)) {                        /* word boundry yet? */
-            cc += sprintf(cp, " ");             /* space between words */
+            cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), " ");             /* space between words */
             cp += 1;                            /* next print location */
         }
     }
 
     while (bp < 16) {
-        cc += sprintf(cp, " ");                 /* print out one space */
+        cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), " ");                 /* print out one space */
         cp += 1;                                /* next print location */
         buff[bp++] = 0x20;                      /* blank char buffer */
         if (!(bp % 4)) {
-            cc += sprintf(cp, " ");             /* space between words */
+            cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), " ");             /* space between words */
             cp += 1;                            /* next print location */
         }
     }
     buff[bp] = 0;                               /* terminate line */
-    cc += sprintf(cp, "|%s|\n", buff);          /* print out ascii text */
+    cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), "|%s|\n", buff);          /* print out ascii text */
     return (line);                              /* return pointer to caller */
 }
 
@@ -371,30 +371,30 @@ char *dump_buf(uint8 *mp, int32 off, int cnt)
 
     while (bp < bl) {
         if (!bp) {
-            cc = sprintf(cp, " %06x : ", ma);    /* output location offset */
+            cc = snprintf(cp, sizeof(line) - (size_t)(cp - line), " %06x : ", ma);    /* output location offset */
             cp += cc;                           /* next print location */
         }
         ch = mp[ma++] & 0xff;                   /* get a char from memory */
-        cc += sprintf(cp, "%02x", ch);          /* print out current char */
+        cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), "%02x", ch);          /* print out current char */
         cp += 2;                                /* next print location */
         buff[bp++] = PRINTABLE(ch);             /* get printable version of char */
         if (!(bp % 4)) {                        /* word boundry yet? */
-            cc += sprintf(cp, " ");             /* space between words */
+            cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), " ");             /* space between words */
             cp += 1;                            /* next print location */
         }
     }
 
     while (bp < 16) {
-        cc += sprintf(cp, " ");                 /* print out one space */
+        cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), " ");                 /* print out one space */
         cp += 1;                                /* next print location */
         buff[bp++] = 0x20;                      /* blank char buffer */
         if (!(bp % 4)) {
-            cc += sprintf(cp, " ");             /* space between words */
+            cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), " ");             /* space between words */
             cp += 1;                            /* next print location */
         }
     }
     buff[bp] = 0;                               /* terminate line */
-    cc += sprintf(cp, "|%s|\n", buff);          /* print out ascii text */
+    cc += snprintf(cp, sizeof(line) - (size_t)(cp - line), "|%s|\n", buff);          /* print out ascii text */
     return (line);                              /* return pointer to caller */
 }
 

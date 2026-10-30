@@ -536,7 +536,7 @@ for (dev = 0; (dptr = sim_devices[dev]) != NULL; dev++) {
         int32 saved_sim_show_message = sim_show_message;
 
         sim_show_message = FALSE;
-        sprintf (cmd, "%s %sAUTOSIZE", sim_uname (&dptr->units[unit]), (flag != 0) ? "NO" : "");
+        snprintf (cmd, sizeof(cmd), "%s %sAUTOSIZE", sim_uname (&dptr->units[unit]), (flag != 0) ? "NO" : "");
         set_cmd (0, cmd);
         sim_show_message = saved_sim_show_message;
         }
@@ -3000,7 +3000,7 @@ if ((DK_GET_FMT (uptr) == DKUF_F_VHD) || (ctx->footer)) {
         if (r != SCPE_OK) {
             uptr->flags |= UNIT_ATT;
             sim_disk_detach (uptr);                         /* report error now */
-            sprintf (cmd, "%s%d %s", dptr->name, (int)(uptr-dptr->units), dtype);/* restore original dtype */
+            snprintf (cmd, sizeof(cmd), "%s%d %s", dptr->name, (int)(uptr-dptr->units), dtype);/* restore original dtype */
             set_cmd (0, cmd);
             return r;
             }
@@ -3165,7 +3165,7 @@ if (container_size && (container_size != (t_offset)-1)) {
                     t_stat st;
 
                     uptr->flags &= ~UNIT_ATT;   /* temporarily mark as un-attached */
-                    sprintf (cmd, "%s %s", sim_uname (uptr), *drivetypes);
+                    snprintf (cmd, sizeof(cmd), "%s %s", sim_uname (uptr), *drivetypes);
                     st = set_cmd (0, cmd);
                     uptr->flags |= UNIT_ATT;    /* restore attached indicator */
                     if (st == SCPE_OK)
@@ -6956,10 +6956,10 @@ if ((0 == strcmp ("RL", dptr->name)) ||
         else
             sim_printf ("%d : No File System\n", tests[i].testid);
         sim_switches = tests[i].switches;
-        sprintf(cmd, "%s %sAUTOSIZE", sim_uname (uptr), tests[i].autosize_attach ? "" : "NO");
+        snprintf(cmd, sizeof(cmd), "%s %sAUTOSIZE", sim_uname (uptr), tests[i].autosize_attach ? "" : "NO");
         set_cmd (0, cmd);
         if (tests[i].drive_type != NULL) {
-            sprintf(cmd, "%s %s", sim_uname (uptr), tests[i].drive_type);
+            snprintf(cmd, sizeof(cmd), "%s %s", sim_uname (uptr), tests[i].drive_type);
             set_cmd (0, cmd);
             }
         if (tests[i].container_size)

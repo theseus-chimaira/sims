@@ -702,12 +702,12 @@ if (c >= 0) {                                           /* poll connect */
     rem->single_mode = TRUE;                            /* start in single command mode */
     rem->read_timeout = sim_rem_read_timeout;           /* Start with default timeout */
     if (isprint(sim_int_char&0xFF))
-        sprintf(wru_name, "'%c'", sim_int_char&0xFF);
+        snprintf(wru_name, sizeof(wru_name), "'%c'", sim_int_char&0xFF);
     else
         if (sim_int_char <= 26)
-            sprintf(wru_name, "^%c", '@' + (sim_int_char&0xFF));
+            snprintf(wru_name, sizeof(wru_name), "^%c", '@' + (sim_int_char&0xFF));
         else
-            sprintf(wru_name, "'\\%03o'", sim_int_char&0xFF);
+            snprintf(wru_name, sizeof(wru_name), "'\\%03o'", sim_int_char&0xFF);
     tmxr_linemsgf (lp, "%s Remote Console\r\n"
                        "Enter single commands or to enter multiple command mode enter the %s character\r"
                        "%s",
@@ -1193,7 +1193,8 @@ else {
         *iptr = cptr;
         return sim_messagef (SCPE_ARG, "Expected PERCENT found: %s\n", gbuf);
         }
-    tptr = strcpy (gbuf, "STOP");                   /* Start from a clean slate */
+    strlcpy (gbuf, "STOP", sizeof(gbuf));
+    tptr = gbuf;                   /* Start from a clean slate */
     sim_rem_collect_cmd_setup (rem->line, &tptr);
     rem->smp_sample_interval = cycles;
     rem->smp_reg_count = 0;
@@ -1282,7 +1283,8 @@ else {
         }
     if (stat != SCPE_OK) {                      /* Error? */
         *iptr = cptr;
-        cptr = strcpy (gbuf, "STOP");
+        strlcpy (gbuf, "STOP", sizeof (gbuf));
+            cptr = gbuf;
         sim_rem_collect_cmd_setup (line, &cptr);/* Cleanup mess */
         return stat;
         }
@@ -1405,11 +1407,13 @@ for (i=(was_active_command ? sim_rem_cmd_active_line : 0);
     lp = rem->lp;
     if (!lp->conn) {
         if (rem->repeat_interval) {                 /* was repeated enabled? */
-            cptr = strcpy (gbuf, "STOP");
+            strlcpy (gbuf, "STOP", sizeof (gbuf));
+            cptr = gbuf;
             sim_rem_repeat_cmd_setup (i, &cptr);    /* make sure it is now disabled */
             }
         if (rem->smp_reg_count) {                   /* were bit samples being collected? */
-            cptr = strcpy (gbuf, "STOP");
+            strlcpy (gbuf, "STOP", sizeof (gbuf));
+            cptr = gbuf;
             sim_rem_collect_cmd_setup (i, &cptr);   /* make sure it is now disabled */
             }
         continue;
@@ -1663,7 +1667,7 @@ for (i=(was_active_command ? sim_rem_cmd_active_line : 0);
             tmxr_send_buffered_data (lp);               /* try to flush any buffered data */
             break;
             }
-        strcpy (cbuf, rem->buf);
+        memcpy (cbuf, rem->buf, strlen(rem->buf) + 1);
         rem->buf_ptr = 0;
         rem->buf[rem->buf_ptr] = '\0';
         while (isspace(cbuf[0]))
@@ -1676,7 +1680,7 @@ for (i=(was_active_command ? sim_rem_cmd_active_line : 0);
             else
                 continue;
             }
-        strcpy (sim_rem_command_buf, cbuf);
+        memcpy (sim_rem_command_buf, cbuf, strlen(cbuf) + 1);
         sim_sub_args (cbuf, sizeof(cbuf), argv);
         cptr = cbuf;
         cptr = get_glyph (cptr, gbuf, 0);               /* get command glyph */
@@ -1686,7 +1690,7 @@ for (i=(was_active_command ? sim_rem_cmd_active_line : 0);
             int32 save_quiet = sim_quiet;
 
             sim_quiet = 1;
-            sprintf (sim_rem_con_temp_name, "sim_remote_console_%d.temporary_log", (int)getpid());
+            snprintf (sim_rem_con_temp_name, sizeof(sim_rem_con_temp_name), "sim_remote_console_%d.temporary_log", (int)getpid());
             sim_set_logon (0, sim_rem_con_temp_name);
             sim_quiet = save_quiet;
             sim_log_temp = TRUE;
@@ -2043,7 +2047,7 @@ if (r != SCPE_OK)
     return r;
 if (bufsize < 1400)
     return sim_messagef (SCPE_ARG, "%d is too small.  Minimum size is 1400\n", bufsize);
-sprintf(cmdbuf, "BUFFERED=%d", bufsize);
+snprintf(cmdbuf, sizeof(cmdbuf), "BUFFERED=%d", bufsize);
 return tmxr_open_master (&sim_rem_con_tmxr, cmdbuf);        /* open master socket */
 }
 
@@ -2563,7 +2567,7 @@ t_stat sim_set_cons_buff (int32 flg, CONST char *cptr)
 {
 char cmdbuf[CBUFSIZE];
 
-sprintf(cmdbuf, "BUFFERED%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
+snprintf(cmdbuf, sizeof(cmdbuf), "BUFFERED%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
 return tmxr_open_master (&sim_con_tmxr, cmdbuf);      /* open master socket */
 }
 
@@ -2573,7 +2577,7 @@ t_stat sim_set_cons_unbuff (int32 flg, CONST char *cptr)
 {
 char cmdbuf[CBUFSIZE];
 
-sprintf(cmdbuf, "UNBUFFERED%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
+snprintf(cmdbuf, sizeof(cmdbuf), "UNBUFFERED%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
 return tmxr_open_master (&sim_con_tmxr, cmdbuf);      /* open master socket */
 }
 
@@ -2583,7 +2587,7 @@ t_stat sim_set_cons_log (int32 flg, CONST char *cptr)
 {
 char cmdbuf[CBUFSIZE];
 
-sprintf(cmdbuf, "LOG%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
+snprintf(cmdbuf, sizeof(cmdbuf), "LOG%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
 return tmxr_open_master (&sim_con_tmxr, cmdbuf);      /* open master socket */
 }
 
@@ -2593,7 +2597,7 @@ t_stat sim_set_cons_nolog (int32 flg, CONST char *cptr)
 {
 char cmdbuf[CBUFSIZE];
 
-sprintf(cmdbuf, "NOLOG%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
+snprintf(cmdbuf, sizeof(cmdbuf), "NOLOG%c%s", cptr ? '=' : '\0', cptr ? cptr : "");
 return tmxr_open_master (&sim_con_tmxr, cmdbuf);      /* open master socket */
 }
 
@@ -2663,7 +2667,7 @@ while (*cptr != 0) {                                    /* do all mods */
                 if ((sim_con_tmxr.master) ||            /* already open? */
                     (sim_con_ldsc.serport))
                     sim_set_noserial (0, NULL);         /* close first */
-                sprintf(cbuf, "Connect=%s", gbuf);
+                snprintf(cbuf, sizeof(cbuf), "Connect=%s", gbuf);
                 r = tmxr_attach (&sim_con_tmxr, &sim_con_unit, cbuf);/* open master socket */
                 sim_con_ldsc.rcve = 1;                  /* rcv enabled */
                 if (r == SCPE_OK)
@@ -3816,12 +3820,12 @@ if (!sigint_message_issued) {
     char sigint_name[8];
 
     if (isprint(sim_dbg_int_char&0xFF))
-        sprintf(sigint_name, "'%c'", sim_dbg_int_char&0xFF);
+        snprintf(sigint_name, sizeof(sigint_name), "'%c'", sim_dbg_int_char&0xFF);
     else
         if (sim_dbg_int_char <= 26)
-            sprintf(sigint_name, "^%c", '@' + (sim_dbg_int_char&0xFF));
+            snprintf(sigint_name, sizeof(sigint_name), "^%c", '@' + (sim_dbg_int_char&0xFF));
         else
-            sprintf(sigint_name, "'\\%03o'", sim_dbg_int_char&0xFF);
+            snprintf(sigint_name, sizeof(sigint_name), "'\\%03o'", sim_dbg_int_char&0xFF);
     sigint_message_issued = TRUE;
     sim_messagef (SCPE_OK, "SIGINT will be delivered to your debugger when the %s character is entered\n", sigint_name);
     }
@@ -3999,12 +4003,12 @@ if (!sigint_message_issued) {
     char sigint_name[8];
 
     if (isprint(sim_dbg_int_char&0xFF))
-        sprintf(sigint_name, "'%c'", sim_dbg_int_char&0xFF);
+        snprintf(sigint_name, sizeof(sigint_name), "'%c'", sim_dbg_int_char&0xFF);
     else
         if (sim_dbg_int_char <= 26)
-            sprintf(sigint_name, "^%c", '@' + (sim_dbg_int_char&0xFF));
+            snprintf(sigint_name, sizeof(sigint_name), "^%c", '@' + (sim_dbg_int_char&0xFF));
         else
-            sprintf(sigint_name, "'\\%03o'", sim_dbg_int_char&0xFF);
+            snprintf(sigint_name, sizeof(sigint_name), "'\\%03o'", sim_dbg_int_char&0xFF);
     sigint_message_issued = TRUE;
     sim_messagef (SCPE_OK, "SIGINT will be delivered to your debugger when the %s character is entered\n", sigint_name);
     }
@@ -4129,7 +4133,7 @@ else {
     decode (mbuf, cptr);                                    /* save decoded match string */
 
     mbuf2 = (char *)malloc (3 + strlen(cptr));
-    sprintf (mbuf2, "%s%s%s", (sim_switches & SWMASK ('A')) ? "\n" : "",
+    snprintf (mbuf2, 3 + strlen(cptr), "%s%s%s", (sim_switches & SWMASK ('A')) ? "\n" : "",
                               mbuf,
                               (sim_switches & SWMASK ('I')) ? "" : "\n");
     free (mbuf);

@@ -1391,12 +1391,12 @@ sim_card_attach(UNIT * uptr, CONST char *cptr)
             uptr->dynflags |= UNIT_ATTMULT;
             if (saved_filename) {
                 uptr->filename = (char *)malloc (32 + strlen (cptr) + strlen (saved_filename));
-                sprintf (uptr->filename, "%s, %s-F %s %s", saved_filename,
+                snprintf (uptr->filename, 32 + strlen (cptr) + strlen (saved_filename), "%s, %s-F %s %s", saved_filename,
                      (eof)? "-E ": "", fmt, cptr);
                 free(saved_filename);
             } else {
                 uptr->filename = (char *)malloc (32 + strlen (cptr));
-                sprintf (uptr->filename, "%s-F %s %s", (eof)?"-E ": "", fmt, cptr);
+                snprintf (uptr->filename, 32 + strlen (cptr), "%s-F %s %s", (eof)?"-E ": "", fmt, cptr);
             }
             r = sim_messagef(SCPE_OK, "%s: %d card Deck Loaded from %s\n",
                        sim_uname(uptr), (int)(data->hopper_cards - previous_cards), cptr);
@@ -1513,15 +1513,15 @@ SIM_TEST(create_card_file ("File20.deck", 20));
 SIM_TEST(create_card_file ("File30.deck", 30));
 SIM_TEST(create_card_file ("File40.deck", 40));
 
-sprintf (cmd, "%s File10.deck", dptr->name);
+snprintf (cmd, sizeof(cmd), "%s File10.deck", dptr->name);
 SIM_TEST(attach_cmd (0, cmd));
-sprintf (cmd, "%s File20.deck", dptr->name);
+snprintf (cmd, sizeof(cmd), "%s File20.deck", dptr->name);
 SIM_TEST(attach_cmd (0, cmd));
-sprintf (cmd, "%s -S File30.deck", dptr->name);
+snprintf (cmd, sizeof(cmd), "%s -S File30.deck", dptr->name);
 SIM_TEST(attach_cmd (0, cmd));
-sprintf (cmd, "%s -S -E File40.deck", dptr->name);
+snprintf (cmd, sizeof(cmd), "%s -S -E File40.deck", dptr->name);
 SIM_TEST(attach_cmd (0, cmd));
-sprintf (saved_filename, "%s %s", dptr->name, dptr->units->filename);
+snprintf (saved_filename, sizeof(saved_filename), "%s %s", dptr->name, dptr->units->filename);
 show_cmd (0, dptr->name);
 sim_printf ("Input Hopper Count:  %d\n", (int)sim_card_input_hopper_count(dptr->units));
 sim_printf ("Output Hopper Count: %d\n", (int)sim_card_output_hopper_count(dptr->units));
