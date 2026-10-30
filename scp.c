@@ -4854,10 +4854,10 @@ for (; *ip && (op < oend); ) {
                                     char quote = '"';
                                     if (strchr(do_arg[i], quote))
                                         quote = '\'';
-                                    sprintf(&rbuf[strlen(rbuf)], "%s%c%s%c\"", (i != 1) ? " " : "", quote, do_arg[i], quote);
+                                    snprintf(&rbuf[strlen(rbuf)], sizeof(rbuf) - strlen(rbuf), "%s%c%s%c\"", (i != 1) ? " " : "", quote, do_arg[i], quote);
                                     }
                                 else
-                                    sprintf(&rbuf[strlen(rbuf)], "%s%s", (i != 1) ? " " : "", do_arg[i]);
+                                    snprintf(&rbuf[strlen(rbuf)], sizeof(rbuf) - strlen(rbuf), "%s%s", (i != 1) ? " " : "", do_arg[i]);
                                 }
                             else
                                 break;

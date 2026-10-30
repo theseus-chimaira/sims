@@ -5626,7 +5626,7 @@ if (tbuf == NULL) {                                     /* if the allocation fai
     return SCPE_MEM;                                    /*      and report a "Memory exhausted" error */
     }
 
-strcpy (tbuf, cptr);
+strlcpy (tbuf, cptr, sizeof(tbuf) - 1);
 tptr = tbuf + strlen (tbuf);                            /* append a semicolon */
 *tptr++ = ';';                                          /*   to the command string */
 *tptr = '\0';                                           /*   to make parsing easier for get_range */

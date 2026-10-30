@@ -565,8 +565,8 @@ if ((cptr == NULL) || (*cptr == 0)) {
         return -1;                                  /* no place */
     if ((strlen(default_host) >= host_len) || (strlen(default_port) >= port_len))
         return -1;                                  /* no room */
-    strcpy (host, default_host);
-    strcpy (port, default_port);
+    strlcpy (host, default_host, host_len);
+    strlcpy (port, default_port, port_len);
     return 0;
     }
 memset (default_pbuf, 0, sizeof(default_pbuf));
@@ -602,7 +602,7 @@ if (port)                                               /* port wanted? */
         if (strlen(portp) >= port_len)
             return -1;                                  /* no room */
         else
-            strcpy (port, portp);
+            strlcpy (port, portp, port_len);
         }
 if ((hostp != NULL) && (*hostp != '\0')) {
     if (']' == hostp[strlen(hostp)-1]) {
@@ -620,19 +620,19 @@ if (host) {                                             /* host wanted? */
             return -1;                                  /* no room */
         else
             if (('\0' != hostp[0]) || (default_host == NULL))
-                strcpy (host, hostp);
+                strlcpy (host, hostp, host_len);
             else
                 if (strlen(default_host) >= host_len)
                     return -1;                          /* no room */
                 else
-                    strcpy (host, default_host);
+                    strlcpy (host, default_host, host_len);
         }
     else {
         if (default_host) {
             if (strlen(default_host) >= host_len)
                 return -1;                              /* no room */
             else
-                strcpy (host, default_host);
+                strlcpy (host, default_host, host_len);
             }
         }
     }

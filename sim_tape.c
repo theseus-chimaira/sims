@@ -4977,7 +4977,7 @@ if (max_record_size > tape->block_size) {
     return TRUE;
     }
 ansi_make_HDR1 (&hdr1, &tape->vol1, &hdr4, filename, tape->ansi_type);
-sprintf (file_sequence, "%04d", 1 + tape->file_count);
+snprintf (file_sequence, sizeof(file_sequence), "%04d", 1 + tape->file_count);
 memcpy (hdr1.file_sequence, file_sequence, sizeof (hdr1.file_sequence));
 ansi_make_HDR2 (&hdr2, !lf_line_endings && !crlf_line_endings, tape->block_size, max_record_size, tape->ansi_type);
 
@@ -5039,7 +5039,7 @@ memcpy (hdr1.type, "EOF", sizeof (hdr1.type));
 memcpy (hdr2.type, "EOF", sizeof (hdr2.type));
 memcpy (hdr3.type, "EOF", sizeof (hdr3.type));
 memcpy (hdr4.type, "EOF", sizeof (hdr4.type));
-sprintf (block_count_string, "%06d", block_count);
+snprintf (block_count_string, sizeof(block_count_string), "%06d", block_count);
 memcpy (hdr1.block_count, block_count_string, sizeof (hdr1.block_count));
 memory_tape_add_block (tape, (uint8 *)&hdr1, sizeof (hdr1));
 if (!(ansi->nohdr2))

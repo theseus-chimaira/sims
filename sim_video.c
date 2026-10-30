@@ -126,9 +126,9 @@ const char *vid_key_name (uint32 key)
 static char tmp_key_name[40];
 
     if (key < sizeof(key_names)/sizeof(key_names[0]))
-        sprintf (tmp_key_name, "SIM_KEY_%s", key_names[key]);
+        snprintf (tmp_key_name, sizeof tmp_key_name, "SIM_KEY_%s", key_names[key]);
     else
-        sprintf (tmp_key_name, "UNKNOWN KEY: %d", key);
+        snprintf (tmp_key_name, sizeof tmp_key_name, "UNKNOWN KEY: %d", key);
     return tmp_key_name;
 }
 
@@ -2624,15 +2624,15 @@ if (1) {
     SDL_RenderReadPixels(vptr->vid_renderer, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch);
 #if defined(HAVE_LIBPNG)
     if (!match_ext (filename, "bmp")) {
-        sprintf (fullname, "%s%s", filename, match_ext (filename, "png") ? "" : ".png");
+        snprintf (fullname, strlen(filename) + 5, "%s%s", filename, match_ext (filename, "png") ? "" : ".png");
         stat = SDL_SavePNG(sshot, fullname);
         }
     else {
-        sprintf (fullname, "%s", filename);
+        snprintf (fullname, strlen(filename) + 5, "%s", filename);
         stat = SDL_SaveBMP(sshot, fullname);
         }
 #else
-    sprintf (fullname, "%s%s", filename, match_ext (filename, "bmp") ? "" : ".bmp");
+    snprintf (fullname, strlen(filename) + 5, "%s%s", filename, match_ext (filename, "bmp") ? "" : ".bmp");
     stat = SDL_SaveBMP(sshot, fullname);
 #endif /* defined(HAVE_LIBPNG) */
     SDL_FreeSurface(sshot);
