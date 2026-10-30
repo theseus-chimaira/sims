@@ -4479,7 +4479,7 @@ static void _sim_subststr_substr (const char *ops, char *rbuf, size_t rbuf_size)
 int rbuf_len = (int)strlen (rbuf);
 char *tstr = (char *)malloc (1 + rbuf_len);
 
-strcpy (tstr, rbuf);
+memcpy (tstr, rbuf, (size_t)rbuf_len + 1);
 
 if (*ops == '~') {      /* Substring? */
     int offset = 0, length = rbuf_len;
@@ -7383,7 +7383,7 @@ if (strcmp (ctx->LastDir, directory)) {
         }
     ++ctx->DirChanges;
     sim_printf (" Directory of %*.*s\n\n", (int)(strlen (directory) - 1), (int)(strlen (directory) - 1), directory);
-    strcpy (ctx->LastDir, directory);
+    strlcpy (ctx->LastDir, directory, sizeof ctx->LastDir);
     }
 local = localtime (&filestat->st_mtime);
 if (local)
@@ -7464,7 +7464,8 @@ FILE *file;
 long lines = 0;
 char lbuf[4*CBUFSIZE];
 
-sprintf (FullPath, "%s%s", directory, filename);
+if (snprintf (FullPath, sizeof FullPath, "%s%s", directory, filename) >= (int)sizeof FullPath)
+    return;
 
 file = sim_fopen (FullPath, "r");
 if (file == NULL)                           /* open failed? */
@@ -7550,7 +7551,8 @@ static void sim_delete_entry (const char *directory,
 DEL_CTX *ctx = (DEL_CTX *)context;
 char FullPath[PATH_MAX + 1];
 
-sprintf (FullPath, "%s%s", directory, filename);
+if (snprintf (FullPath, sizeof FullPath, "%s%s", directory, filename) >= (int)sizeof FullPath)
+    return;
 
 if (!unlink (FullPath))
     return;
@@ -7592,7 +7594,8 @@ t_stat st;
 
 strlcpy (dname, ctx->destname, sizeof (dname));
 
-sprintf (FullPath, "%s%s", directory, filename);
+if (snprintf (FullPath, sizeof FullPath, "%s%s", directory, filename) >= (int)sizeof FullPath)
+    return;
 
 if ((dname[strlen (dname) - 1] == '/') || (dname[strlen (dname) - 1] == '\\'))
     dname[strlen (dname) - 1] = '\0';
@@ -8486,7 +8489,7 @@ t_stat assign_device (DEVICE *dptr, const char *cptr)
 dptr->lname = (char *) calloc (1 + strlen (cptr), sizeof (char));
 if (dptr->lname == NULL)
     return SCPE_MEM;
-strcpy (dptr->lname, cptr);
+memcpy (dptr->lname, cptr, strlen(cptr) + 1);
 return SCPE_OK;
 }
 
@@ -8954,7 +8957,7 @@ for ( ;; ) {                                            /* device loop */
             attunits[attcnt] = uptr;
             attnames = (char **)realloc (attnames, sizeof (*attnames)*(attcnt+1));
             attnames[attcnt] = (char *)malloc(1+strlen(buf));
-            strcpy (attnames[attcnt], buf);
+            memcpy (attnames[attcnt], buf, strlen(buf) + 1);
             attswitches = (int32 *)realloc (attswitches, sizeof (*attswitches)*(attcnt+1));
             attswitches[attcnt] = sim_switches;
             ++attcnt;
@@ -10807,7 +10810,7 @@ while (size--) {
             if (sim_isprint (*iptr))
                 *tptr++ = *iptr;
             else {
-                sprintf (tptr, "\\%03o", *iptr);
+                snprintf (tptr, 5, "\\%03o", *iptr);
                 tptr += 4;
                 }
             break;
@@ -11734,7 +11737,7 @@ switch (format) {
             if (!buffer)
                 /* Note: Potentially unsafe wraparound if sizeof(t_stat) < sizeof(size_t) */
                 return ((t_stat) width);
-            sprintf (buffer, "%*s", -((int)width), dbuf);
+            snprintf (buffer, width + 1, "%*s", -((int)width), dbuf);
             return SCPE_OK;
             }
         else
@@ -11836,34 +11839,34 @@ if (usecs == 1000.0) {
     msecs += 1;
     }
 if ((msecs > 0.0) || (usecs > 0.0)) {
-    sprintf (frac, ".%03.0f%03.0f", msecs, usecs);
+    snprintf (frac, sizeof frac, ".%03.0f%03.0f", msecs, usecs);
     while (frac[strlen (frac) - 1] == '0')
         frac[strlen (frac) - 1] = '\0';
     if (strlen (frac) == 1)
         frac[0] = '\0';
     }
 if (days > 0)
-    sprintf (buf, "%s%.0f day%s %02.0f:%02.0f:%02.0f%s hour%s", sign, days, (days != 1)? "s" : "", hours, mins, secs, frac, (days == 1) ? "s" : "");
+    snprintf (buf, sizeof buf, "%s%.0f day%s %02.0f:%02.0f:%02.0f%s hour%s", sign, days, (days != 1)? "s" : "", hours, mins, secs, frac, (days == 1) ? "s" : "");
 else
     if (hours > 0)
-        sprintf (buf, "%s%.0f:%02.0f:%02.0f%s hour", sign, hours, mins, secs, frac);
+        snprintf (buf, sizeof buf, "%s%.0f:%02.0f:%02.0f%s hour", sign, hours, mins, secs, frac);
     else
         if (mins > 0)
-            sprintf (buf, "%s%.0f:%02.0f%s minute", sign, mins, secs, frac);
+            snprintf (buf, sizeof buf, "%s%.0f:%02.0f%s minute", sign, mins, secs, frac);
         else
             if (secs > 0)
-                sprintf (buf, "%s%.0f%s second", sign, secs, frac);
+                snprintf (buf, sizeof buf, "%s%.0f%s second", sign, secs, frac);
             else
                 if (msecs > 0) {
                     if (usecs > 0)
-                        sprintf (buf, "%s%.0f.%s msec", sign, msecs, frac+4);
+                        snprintf (buf, sizeof buf, "%s%.0f.%s msec", sign, msecs, frac+4);
                     else
-                        sprintf (buf, "%s%.0f msec", sign, msecs);
+                        snprintf (buf, sizeof buf, "%s%.0f msec", sign, msecs);
                     }
                 else
-                    sprintf (buf, "%s%.0f usec", sign, usecs);
+                    snprintf (buf, sizeof buf, "%s%.0f usec", sign, usecs);
 if (0 != strncmp ("1 ", buf, 2))
-    strcpy (&buf[strlen (buf)], "s");
+    strlcat (buf, "s", sizeof buf);
 return buf;
 }
 
@@ -11875,8 +11878,10 @@ size_t len;
 uint32 c;
 char *p;
 
-sprintf (tmpbuf, "%.0f", number);
+snprintf (tmpbuf, sizeof tmpbuf, "%.0f", number);
 len = strlen (tmpbuf);
+if ((len + (len / 3) + 1) > sizeof buf)
+    return "number too large";
 for (c=0, p=buf; c < len; c++) {
     if ((c > 0) &&
         (sim_isdigit (tmpbuf[c])) &&
@@ -12883,14 +12888,14 @@ if (sim_brk_type_desc) {
 
     while (2 == strlen (put_switches (buf, sizeof(buf), brk->btyp))) {
         if (brk->btyp == sim_brk_match_type) {
-            sprintf (msg, "%s: %s", brk->desc, addr);
+            snprintf (msg, sizeof msg, "%s: %s", brk->desc, addr);
             break;
             }
         brk++;
         }
     }
 if (!msg[0])
-    sprintf (msg, "%s Breakpoint at: %s\n", put_switches (buf, sizeof(buf), sim_brk_match_type), addr);
+    snprintf (msg, sizeof msg, "%s Breakpoint at: %s\n", put_switches (buf, sizeof(buf), sim_brk_match_type), addr);
 
 return msg;
 }
@@ -13138,7 +13143,7 @@ memset (ep, 0, sizeof(*ep));
 ep->after = after;                                     /* set halt after value */
 ep->match_pattern = (char *)malloc (strlen (match) + 1);
 if (ep->match_pattern)
-    strcpy (ep->match_pattern, match);
+    memcpy (ep->match_pattern, match, strlen(match) + 1);
 ep->cnt = cnt;                                          /* set proceed count */
 ep->switches = switches;                                /* set switches */
 match_buf = (uint8 *)calloc (strlen (match) + 1, 1);
@@ -13181,7 +13186,7 @@ if ((act != NULL) && (*act != 0)) {                     /* new action? */
     newp = (char *) calloc (strlen (act)+1, sizeof (*act)); /* alloc buf */
     if (newp == NULL)                                   /* mem err? */
         return SCPE_MEM;
-    strcpy (newp, act);                                 /* copy action */
+    memcpy (newp, act, strlen(act) + 1);                                 /* copy action */
     ep->act = newp;                                     /* set pointer */
     }
 /* Make sure that the production buffer is large enough to detect a match for all rules including a NUL termination byte */
@@ -13551,7 +13556,7 @@ if ((NULL != snd) && (snd->extoff < snd->insoff)) {     /* pending input charact
         *stat = snd->buffer[snd->extoff++] | SCPE_KFLAG;/* get one */
         snd->next_time = sim_gtime() + snd->delay;
         if (sim_isgraph(*stat & 0xFF) || ((*stat & 0xFF) == ' '))
-            sprintf (dstr, " '%c'", *stat & 0xFF);
+            snprintf (dstr, sizeof dstr, " '%c'", *stat & 0xFF);
         sim_debug (snd->dbit, snd->dptr, "Byte value: 0x%02X%s injected\n", *stat & 0xFF, dstr);
         }
     return TRUE;
@@ -13782,7 +13787,9 @@ if (sim_deb == sim_log) {                               /* debug is log */
     }
 
 if (!(saved_deb_switches & SWMASK ('B'))) {
-    strcpy (saved_debug_filename, sim_logfile_name (sim_deb, sim_deb_ref));
+    if (strlcpy (saved_debug_filename, sim_logfile_name (sim_deb, sim_deb_ref),
+                 sizeof saved_debug_filename) >= sizeof saved_debug_filename)
+        return SCPE_ARG;
 
     sim_quiet = 1;
     sim_set_deboff (0, NULL);
@@ -13862,7 +13869,7 @@ if (sim_deb_switches & SWMASK ('P')) {
     sprintf(pc_s, "-%s:", sim_PC->name);
     sprint_val (&pc_s[strlen(pc_s)], val, sim_PC->radix, sim_PC->width, sim_PC->flags & REG_FMT);
     }
-sprintf(debug_line_prefix, "DBG(%s%s%.0f%s)%s> %s %s: ", tim_t, tim_a, sim_gtime(), pc_s, AIO_MAIN_THREAD ? "" : "+", dptr->name, debug_type);
+snprintf(debug_line_prefix, sizeof debug_line_prefix, "DBG(%s%s%.0f%s)%s> %s %s: ", tim_t, tim_a, sim_gtime(), pc_s, AIO_MAIN_THREAD ? "" : "+", dptr->name, debug_type);
 return debug_line_prefix;
 }
 
@@ -15387,7 +15394,7 @@ return this_Stack; /* Returns created stack */
 /*-----------------------------------------------------------------------------
  * Remove the top element from the specified stack
  -----------------------------------------------------------------------------*/
-static t_bool pop_Stack (Stack * this_Stack, char *data, Operator **op)
+static t_bool pop_Stack (Stack * this_Stack, char *data, size_t data_size, Operator **op)
 {
 *op = NULL;
 *data = '\0';
@@ -15395,7 +15402,7 @@ static t_bool pop_Stack (Stack * this_Stack, char *data, Operator **op)
 if (isempty_Stack(this_Stack))
     return FALSE;
 
-strcpy (data, this_Stack->elements[this_Stack->pointer-1].data);
+strlcpy (data, this_Stack->elements[this_Stack->pointer-1].data, data_size);
 *op = this_Stack->elements[this_Stack->pointer-1].op;
 --this_Stack->pointer;
 
@@ -15440,12 +15447,12 @@ return TRUE;                      /* Success */
 /*-----------------------------------------------------------------------------
  * Return the element at the top of the stack.
  -----------------------------------------------------------------------------*/
-static t_bool top_Stack (Stack * this_Stack, char *data, Operator **op)
+static t_bool top_Stack (Stack * this_Stack, char *data, size_t data_size, Operator **op)
 {
 if (isempty_Stack(this_Stack))
     return FALSE;
 
-strcpy (data, this_Stack->elements[this_Stack->pointer-1].data);
+strlcpy (data, this_Stack->elements[this_Stack->pointer-1].data, data_size);
 *op = this_Stack->elements[this_Stack->pointer-1].op;
 
 if (*op)
@@ -15636,7 +15643,7 @@ static Operator operators[] = {
     {"~",        2, 1, _op_comp,        NULL,           "Bitwise Compliment"},
     {NULL}};
 
-static const char *get_glyph_exp (const char *cptr, char *buf, Operator **oper, t_stat *stat)
+static const char *get_glyph_exp (const char *cptr, char *buf, size_t buf_size, Operator **oper, t_stat *stat)
 {
 static const char HexDigits[] = "0123456789abcdefABCDEF";
 static const char OctalDigits[] = "01234567";
@@ -15738,7 +15745,7 @@ else {
 
                 for (op = operators; op->string; op++) {
                     if (!memcmp (cptr, op->string, strlen (op->string))) {
-                        strcpy (buf, op->string);
+                        strlcpy (buf, op->string, buf_size);
                         cptr += strlen (op->string);
                         *oper = op;
                         break;
@@ -15784,7 +15791,7 @@ if (parens_required && (*cptr != '(')) {
 while (*cptr) {
     last_cptr = cptr;
     last_op = op;
-    cptr = get_glyph_exp (cptr, gbuf, &op, stat);
+    cptr = get_glyph_exp (cptr, gbuf, sizeof gbuf, &op, stat);
     if (*stat != SCPE_OK) {
         delete_Stack (stack2);
         return cptr;
@@ -15809,7 +15816,7 @@ while (*cptr) {
         Operator *temp_op;
 
         --parens;
-        if ((!pop_Stack (stack2, temp_buf, &temp_op)) ||
+        if ((!pop_Stack (stack2, temp_buf, sizeof(temp_buf), &temp_op)) ||
             (parens < 0)){
             *stat = sim_messagef (SCPE_INVEXPR, "Invalid Parenthesis nesting\n");
             delete_Stack (stack2);
@@ -15817,7 +15824,7 @@ while (*cptr) {
             }
         while (0 != strcmp (temp_op->string, "(")) {
             push_Stack (stack1, temp_buf, temp_op);
-            if (!pop_Stack (stack2, temp_buf, &temp_op))
+            if (!pop_Stack (stack2, temp_buf, sizeof(temp_buf), &temp_op))
                 break;
             }
         if (parens_required && (parens == 0)) {
@@ -15830,10 +15837,10 @@ while (*cptr) {
         char top_buf[CBUFSIZE];
         Operator *top_op;
 
-        top_Stack (stack2, top_buf, &top_op);
+        top_Stack (stack2, top_buf, sizeof(top_buf), &top_op);
         if (top_op->precedence > op->precedence)
             break;
-        pop_Stack (stack2, top_buf, &top_op);
+        pop_Stack (stack2, top_buf, sizeof(top_buf), &top_op);
         push_Stack (stack1, top_buf, top_op);
         }
     push_Stack (stack2, gbuf, op);
@@ -15842,7 +15849,7 @@ if (parens != 0)
     *stat = sim_messagef (SCPE_INVEXPR, "Invalid Parenthesis nesting\n");
 /* migrate the rest of stack2 onto stack1 */
 while (!isempty_Stack (stack2)) {
-    pop_Stack (stack2, gbuf, &op);
+    pop_Stack (stack2, gbuf, sizeof(gbuf), &op);
     push_Stack (stack1, gbuf, op);
     }
 
@@ -15931,7 +15938,7 @@ char temp_string[CBUFSIZE + 2];
 *stat = SCPE_OK;
 /* Reverse stack1 onto stack2 leaving stack1 empty */
 while (!isempty_Stack(stack1)) {
-    pop_Stack (stack1, temp_data, &temp_op);
+    pop_Stack (stack1, temp_data, sizeof(temp_data), &temp_op);
     if (temp_op)
         sim_debug (SIM_DBG_EXP_EVAL, &sim_scp_dev, "[Expression element: %s (%d)\n",
                                                    temp_op->string, temp_op->precedence);
@@ -15943,7 +15950,7 @@ while (!isempty_Stack(stack1)) {
 
 /* Loop through the postfix expression in stack2 evaluating until stack2 is empty */
 while (!isempty_Stack(stack2)) {
-    pop_Stack (stack2, temp_data, &temp_op);
+    pop_Stack (stack2, temp_data, sizeof(temp_data), &temp_op);
     if (temp_op) {              /* operator? */
         t_bool num1;
         t_svalue val1;
@@ -15954,7 +15961,7 @@ while (!isempty_Stack(stack2)) {
         char item2[CBUFSIZE], string2[CBUFSIZE+2];
         Operator *op2;
 
-        if (!pop_Stack (stack1, item1, &op1)) {
+        if (!pop_Stack (stack1, item1, sizeof(item1), &op1)) {
             *stat = SCPE_INVEXPR;
             delete_Stack (stack2);
             return 0;
@@ -15962,7 +15969,7 @@ while (!isempty_Stack(stack2)) {
         if (temp_op->unary)
             strlcpy (item2, "0", sizeof (item2));
         else {
-            if ((!pop_Stack (stack1, item2, &op2)) &&
+            if ((!pop_Stack (stack1, item2, sizeof(item2), &op2)) &&
                 (temp_op->string[0] != '-') &&
                 (temp_op->string[0] != '+')) {
                 *stat = SCPE_INVEXPR;
@@ -15981,7 +15988,7 @@ while (!isempty_Stack(stack2)) {
     else
         push_Stack (stack1, temp_data, temp_op);
     }
-if (!pop_Stack (stack1, temp_data, &temp_op)) {
+if (!pop_Stack (stack1, temp_data, sizeof(temp_data), &temp_op)) {
     *stat = SCPE_INVEXPR;
     delete_Stack (stack2);
     return 0;

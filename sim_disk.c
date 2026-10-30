@@ -6006,12 +6006,23 @@ if (RelativeMatch) {
     char UpDir[4] = "..\\";
 
     UpDir[2] = FullParentVHDPath[RelativeMatch];
-    if (UpDirectories)
+    if (UpDirectories) {
         for (i=0; i<UpDirectories; i++)
-            strcpy (RelativeParentVHDPath+strlen (RelativeParentVHDPath), UpDir);
-    else
-        strcpy (RelativeParentVHDPath+strlen (RelativeParentVHDPath), UpDir+1);
-    strcpy (RelativeParentVHDPath+strlen (RelativeParentVHDPath), &FullParentVHDPath[RelativeMatch+1]);
+            if (strlcat (RelativeParentVHDPath, UpDir, BytesPerSector / 2 + 1) >= BytesPerSector / 2 + 1) {
+                Status = ENAMETOOLONG;
+                goto Cleanup_Return;
+                }
+        }
+    else {
+        if (strlcat (RelativeParentVHDPath, UpDir+1, BytesPerSector / 2 + 1) >= BytesPerSector / 2 + 1) {
+            Status = ENAMETOOLONG;
+            goto Cleanup_Return;
+            }
+        }
+    if (strlcat (RelativeParentVHDPath, &FullParentVHDPath[RelativeMatch+1], BytesPerSector / 2 + 1) >= BytesPerSector / 2 + 1) {
+        Status = ENAMETOOLONG;
+        goto Cleanup_Return;
+        }
     }
 for (i=0; i < strlen(RelativeParentVHDPath); i++)
     RelativeParentVHDPathUnicode[i*2] = RelativeParentVHDPath[i];

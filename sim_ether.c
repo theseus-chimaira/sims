@@ -824,8 +824,8 @@ const char* eth_getname_bydesc(const char* desc, char* name, char *ndesc)
     if (found == 0) continue;
 
     /* found a case-insensitive description match */
-    strcpy(name, list[i].name);
-    strcpy(ndesc, list[i].desc);
+    strlcpy(name, list[i].name, ETH_DEV_NAME_MAX);
+    strlcpy(ndesc, list[i].desc, ETH_DEV_DESC_MAX);
     return name;
   }
   /* not found */
@@ -845,8 +845,8 @@ char* eth_getname_byname(const char* name, char* temp, char *desc)
     if ((n == strlen(list[i].name)) &&
         (strncasecmp(name, list[i].name, n) == 0)) {
       found = 1;
-      strcpy(temp, list[i].name); /* only case might be different */
-      strcpy(desc, list[i].desc);
+      strlcpy(temp, list[i].name, ETH_DEV_NAME_MAX); /* only case might be different */
+      strlcpy(desc, list[i].desc, ETH_DEV_DESC_MAX);
     }
   }
   return (found ? temp : NULL);
@@ -865,7 +865,7 @@ char* eth_getdesc_byname(char* name, char* temp)
     if ((n == strlen(list[i].name)) &&
         (strncasecmp(name, list[i].name, n) == 0)) {
       found = 1;
-      strcpy(temp, list[i].desc);
+      strlcpy(temp, list[i].desc, ETH_DEV_DESC_MAX);
     }
   }
   return (found ? temp : NULL);
@@ -1123,7 +1123,7 @@ for (i=0; i<used; i++) {
       }
     /* registry value seems OK, finish up and replace description */
     RegCloseKey (reghnd );
-    sprintf (list[i].desc, "%s", regval);
+    snprintf(list[i].desc, sizeof list[i].desc, "%s", regval);
     }
   } /* for */
 #endif
@@ -1183,35 +1183,35 @@ if (framers)
 #ifdef HAVE_TAP_NETWORK
 if (used < max) {
 #if defined(__OpenBSD__)
-  sprintf(list[used].name, "%s", "tap:tunN");
+  snprintf(list[used].name, sizeof list[used].name, "%s", "tap:tunN");
 #else
-  sprintf(list[used].name, "%s", "tap:tapN");
+  snprintf(list[used].name, sizeof list[used].name, "%s", "tap:tapN");
 #endif
-  sprintf(list[used].desc, "%s", "Integrated Tun/Tap support");
+  snprintf(list[used].desc, sizeof list[used].desc, "%s", "Integrated Tun/Tap support");
   list[used].eth_api = ETH_API_TAP;
   ++used;
   }
 #endif
 #ifdef HAVE_VDE_NETWORK
 if (used < max) {
-  sprintf(list[used].name, "%s", "vde:device{:switch-port-number}");
-  sprintf(list[used].desc, "%s", "Integrated VDE support");
+  snprintf(list[used].name, sizeof list[used].name, "%s", "vde:device{:switch-port-number}");
+  snprintf(list[used].desc, sizeof list[used].desc, "%s", "Integrated VDE support");
   list[used].eth_api = ETH_API_VDE;
   ++used;
   }
 #endif
 #ifdef HAVE_SLIRP_NETWORK
 if (used < max) {
-  sprintf(list[used].name, "%s", "nat:{optional-nat-parameters}");
-  sprintf(list[used].desc, "%s", "Integrated NAT (SLiRP) support");
+  snprintf(list[used].name, sizeof list[used].name, "%s", "nat:{optional-nat-parameters}");
+  snprintf(list[used].desc, sizeof list[used].desc, "%s", "Integrated NAT (SLiRP) support");
   list[used].eth_api = ETH_API_NAT;
   ++used;
   }
 #endif
 
 if (used < max) {
-  sprintf(list[used].name, "%s", "udp:sourceport:remotehost:remoteport");
-  sprintf(list[used].desc, "%s", "Integrated UDP bridge support");
+  snprintf(list[used].name, sizeof list[used].name, "%s", "udp:sourceport:remotehost:remoteport");
+  snprintf(list[used].desc, sizeof list[used].desc, "%s", "Integrated UDP bridge support");
   list[used].eth_api = ETH_API_UDP;
   ++used;
   }
@@ -1455,7 +1455,7 @@ int pcap_findalldevs(pcap_if_t** a, char* b) {
     return p_pcap_findalldevs(a, b);
   } else {
     *a = 0;
-    strcpy(b, no_pcap);
+    strlcpy(b, no_pcap, PCAP_ERRBUF_SIZE);
     no_pcap[0] = '\0';
     return -1;
   }
@@ -2285,7 +2285,7 @@ if (0 == strncmp("tap:", savname, 4)) {
         }
       else {
         *fd_handle = (SOCKET)tun;
-        strcpy(savname, ifr.ifr_name);
+        strlcpy(savname, ifr.ifr_name, ETH_DEV_NAME_MAX);
         }
       }
     else
@@ -2419,8 +2419,8 @@ else { /* !tap: */
           return SCPE_OPENERR;
 
         if (localport[0] == '\0')
-          strcpy (localport, port);
-        sprintf (hostport, "%s:%s", host, port);
+          strlcpy (localport, port, sizeof localport);
+        snprintf (hostport, sizeof hostport, "%s:%s", host, port);
         if ((SCPE_OK == sim_parse_addr (hostport, NULL, 0, NULL, NULL, 0, NULL, "localhost")) &&
             (0 == strcmp (localport, port)))
           return sim_messagef (SCPE_OPENERR, "Eth: Must specify different udp localhost ports\n");
@@ -2505,7 +2505,7 @@ if (bpf_filter && (*eth_api == ETH_API_PCAP)) {
     bpf_netmask = 0;
   /* compile filter string */
   if ((status = pcap_compile((pcap_t*)(*handle), &bpf, bpf_filter, 1, bpf_netmask)) < 0) {
-    sprintf(errbuf, "%s", pcap_geterr((pcap_t*)(*handle)));
+    snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", pcap_geterr((pcap_t*)(*handle)));
     sim_printf("Eth: pcap_compile error: %s\n", errbuf);
     /* show erroneous BPF string */
     sim_printf ("Eth: BPF string is: |%s|\n", bpf_filter);
@@ -2513,7 +2513,7 @@ if (bpf_filter && (*eth_api == ETH_API_PCAP)) {
   else {
     /* apply compiled filter string */
     if ((status = pcap_setfilter((pcap_t*)(*handle), &bpf)) < 0) {
-      sprintf(errbuf, "%s", pcap_geterr((pcap_t*)(*handle)));
+      snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", pcap_geterr((pcap_t*)(*handle)));
       sim_printf("Eth: pcap_setfilter error: %s\n", errbuf);
       }
     else {
@@ -2587,7 +2587,7 @@ if (r != SCPE_OK)
   return r;
 
 if (!strcmp (desc, "No description available"))
-    strcpy (desc, "");
+    desc[0] = 0;
 sim_messagef (SCPE_OK, "Eth: opened OS device %s%s%s\n", savname, desc[0] ? " - " : "", desc);
 
 /* get the NIC's hardware MAC address */
@@ -2595,7 +2595,7 @@ eth_get_nic_hw_addr(dev, savname, 1);
 
 /* save name of device */
 dev->name = (char *)malloc(strlen(savname)+1);
-strcpy(dev->name, savname);
+memcpy(dev->name, savname, strlen(savname) + 1);
 
 /* save debugging information */
 dev->dptr = dptr;
@@ -2972,7 +2972,7 @@ switch (dev->eth_api) {
       netname = "nat";
       break;
   }
-sprintf(msg, "%s(%s): ", where, netname);
+snprintf(msg, sizeof msg, "%s(%s): ", where, netname);
 switch (dev->eth_api) {
 #if defined(HAVE_PCAP_NETWORK)
   case ETH_API_PCAP:
@@ -3963,20 +3963,37 @@ if (status < 0) {
 return status;
 }
 
+static t_stat eth_bpf_append (char *buffer, size_t capacity, const char *format, ...)
+{
+size_t used = strlen (buffer);
+va_list args;
+int count;
+
+if (used >= capacity)
+    return SCPE_ARG;
+va_start (args, format);
+count = vsnprintf (buffer + used, capacity - used, format, args);
+va_end (args);
+if ((count < 0) || ((size_t)count >= capacity - used))
+    return SCPE_ARG;
+return SCPE_OK;
+}
+
 t_stat eth_bpf_filter (ETH_DEV* dev, int addr_count, ETH_MAC* const filter_address,
                        ETH_BOOL all_multicast, ETH_BOOL promiscuous,
                        int reflections,
                        ETH_MAC physical_addr,
                        ETH_MAC host_nic_phy_hw_addr,
                        ETH_MULTIHASH* const hash,
-                       char *buf)
+                       char *buf, size_t buf_size)
 {
 int i;
 char mac[20];
 char *buf2;
 
 /* setup BPF filters and other fields to minimize packet delivery */
-strcpy(buf, "");
+if (buf_size == 0) return SCPE_ARG;
+buf[0] = 0;
 
 /* construct destination filters - since the real ethernet interface was set
    into promiscuous mode by eth_open(), we need to filter out the packets that
@@ -3985,12 +4002,12 @@ if (!promiscuous) {
   for (i = 0; i < addr_count; i++) {
     eth_mac_fmt(filter_address[i], mac);
     if (!strstr(buf, mac))    /* eliminate duplicates */
-      sprintf(&buf[strlen(buf)], "%s(ether dst %s)", (*buf) ? " or " : "((", mac);
+      if (eth_bpf_append(buf, buf_size, "%s(ether dst %s)", (*buf) ? " or " : "((", mac) != SCPE_OK) return SCPE_ARG;
     }
   if (all_multicast || hash)
-    sprintf(&buf[strlen(buf)], "%s(ether multicast)", (*buf) ? " or " : "((");
+    if (eth_bpf_append(buf, buf_size, "%s(ether multicast)", (*buf) ? " or " : "((") != SCPE_OK) return SCPE_ARG;
   if (strlen(buf) > 0)
-    sprintf(&buf[strlen(buf)], ")");
+    if (eth_bpf_append(buf, buf_size, ")") != SCPE_OK) return SCPE_ARG;
   }
 
 /* construct source filters - this prevents packets from being reflected back
@@ -3998,20 +4015,21 @@ if (!promiscuous) {
    some systems do not reflect packets at all. This *assumes* that the
    simulated NIC will not send out packets with multicast source fields. */
 if ((addr_count > 0) && (reflections > 0)) {
-  if (strlen(buf) > 0)
-    sprintf(&buf[strlen(buf)], " and ");
-  else
-    if (promiscuous)
-      sprintf(&buf[strlen(buf)], "(");
-  sprintf (&buf[strlen(buf)], "not (");
+  if (strlen(buf) > 0) {
+    if (eth_bpf_append(buf, buf_size, " and ") != SCPE_OK) return SCPE_ARG;
+    }
+  else if (promiscuous) {
+    if (eth_bpf_append(buf, buf_size, "(") != SCPE_OK) return SCPE_ARG;
+    }
+  if (eth_bpf_append(buf, buf_size, "not (") != SCPE_OK) return SCPE_ARG;
   buf2 = &buf[strlen(buf)];
   for (i = 0; i < addr_count; i++) {
     if (filter_address[i][0] & 0x01) continue; /* skip multicast addresses */
     eth_mac_fmt(filter_address[i], mac);
     if (!strstr(buf2, mac))   /* only process each address once */
-      sprintf(&buf2[strlen(buf2)], "%s(ether src %s)", (*buf2) ? " or " : "", mac);
+      if (eth_bpf_append(buf2, buf_size - (size_t)(buf2 - buf), "%s(ether src %s)", (*buf2) ? " or " : "", mac) != SCPE_OK) return SCPE_ARG;
     }
-  sprintf (&buf[strlen(buf)], ")");
+  if (eth_bpf_append(buf, buf_size, ")") != SCPE_OK) return SCPE_ARG;
   if (1 == strlen(buf2)) {          /* all addresses were multicast? */
     buf[strlen(buf)-6] = '\0';      /* Remove "not ()" */
     if (strlen(buf) > 0)
@@ -4019,7 +4037,7 @@ if ((addr_count > 0) && (reflections > 0)) {
     }
   }
 if (strlen(buf) > 0)
-  sprintf(&buf[strlen(buf)], ")");
+  if (eth_bpf_append(buf, buf_size, ")") != SCPE_OK) return SCPE_ARG;
 /* When changing the Physical Address on a LAN interface, VMS sends out a
    loopback packet with the source and destination addresses set to the same
    value as the Physical Address which is being setup.  This packet is
@@ -4042,13 +4060,13 @@ if ((!promiscuous) && (addr_count) && (reflections > 0)) {
   eth_mac_fmt(physical_addr, mac);
   if (strcmp(mac, "00:00:00:00:00:00") != 0) {
     /* let packets through where dst and src are the same as our physical address */
-    sprintf (&buf[strlen(buf)], " or ((ether dst %s) and (ether src %s))", mac, mac);
+    if (eth_bpf_append(buf, buf_size, " or ((ether dst %s) and (ether src %s))", mac, mac) != SCPE_OK) return SCPE_ARG;
     eth_mac_fmt(host_nic_phy_hw_addr, mac);
-    sprintf(&buf[strlen(buf)], " or ((ether dst %s) and (ether proto 0x9000))", mac);
+    if (eth_bpf_append(buf, buf_size, " or ((ether dst %s) and (ether proto 0x9000))", mac) != SCPE_OK) return SCPE_ARG;
     }
   }
 if ((0 == strlen(buf)) && (!promiscuous)) /* Empty filter means match nothing */
-  strcpy(buf, "ether host fe:ff:ff:ff:ff:ff"); /* this should be a good match nothing filter */
+  if (strlcpy(buf, "ether host fe:ff:ff:ff:ff:ff", buf_size) >= buf_size) return SCPE_ARG; /* this should be a good match nothing filter */
 sim_debug(dev->dbit, dev->dptr, "BPF string is: |%s|\n", buf);
 return SCPE_OK;
 }
@@ -4160,7 +4178,7 @@ eth_bpf_filter (dev, dev->addr_count, dev->filter_address,
                 dev->all_multicast, dev->promiscuous,
                 dev->reflections, dev->physical_addr,
                 dev->host_nic_phy_hw_addr,
-                (dev->hash_filter ? &dev->hash : NULL), buf);
+                (dev->hash_filter ? &dev->hash : NULL), buf, sizeof buf);
 
 /* get netmask, which is a required argument for compiling.  The value,
    in our case isn't actually interesting since the filters we generate
@@ -4175,7 +4193,7 @@ if (dev->eth_api == ETH_API_PCAP) {
     bpf_netmask = 0;
   /* compile filter string */
   if ((status = pcap_compile((pcap_t*)dev->handle, &bpf, buf, 1, bpf_netmask)) < 0) {
-    sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev->handle));
+    snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", pcap_geterr((pcap_t*)dev->handle));
     sim_printf("Eth: pcap_compile error: %s\n", errbuf);
     /* show erroneous BPF string */
     sim_printf ("Eth: BPF string is: |%s|\n", buf);
@@ -4203,14 +4221,14 @@ if (dev->eth_api == ETH_API_PCAP) {
   else {
     /* apply compiled filter string */
     if ((status = pcap_setfilter((pcap_t*)dev->handle, &bpf)) < 0) {
-      sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev->handle));
+      snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", pcap_geterr((pcap_t*)dev->handle));
       sim_printf("Eth: pcap_setfilter error: %s\n", errbuf);
       sim_printf ("Eth: BPF string is: |%s|\n", buf);
       }
     else {
       /* Save BPF filter string */
       dev->bpf_filter = (char *)realloc(dev->bpf_filter, 1 + strlen(buf));
-      strcpy (dev->bpf_filter, buf);
+      memcpy (dev->bpf_filter, buf, strlen(buf) + 1);
 #ifdef USE_SETNONBLOCK
       /* set file non-blocking */
       status = pcap_setnonblock (dev->handle, 1, errbuf);
@@ -4442,7 +4460,7 @@ for (eth_num=0; eth_num<eth_device_count; eth_num++) {
                                   filter_address[0],
                                   *host_phy_addr_list[host_phy_addr_listindex],
                                   hash_list[hash_listindex],
-                                  buf);
+                                  buf, sizeof buf);
               if (r != SCPE_OK) {
                 ++bpf_construct_error_count;
                 sim_printf ("Eth: Error producing a BPF filter for:\n");
@@ -4458,7 +4476,7 @@ for (eth_num=0; eth_num<eth_device_count; eth_num++) {
 
                   if (pcap_compile ((pcap_t*)dev.handle, &bpf, buf, 1, (bpf_u_int32)0) < 0) {
                     ++bpf_compile_error_count;
-                    sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev.handle));
+                    snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", pcap_geterr((pcap_t*)dev.handle));
                     sim_printf("Eth: pcap_compile error: %s\n", errbuf);
                     if (!(sim_switches & SWMASK('D'))) {
                       /* show erroneous BPF string */

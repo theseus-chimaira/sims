@@ -1429,7 +1429,7 @@ if (lp->txlog)
 
 tmxr_send_buffered_data (lp);                           /* send any buffered data */
 
-sprintf (msg, "tmxr_reset_ln_ex(%s)", closeserial ? "TRUE" : "FALSE");
+snprintf (msg, sizeof msg, "tmxr_reset_ln_ex(%s)", closeserial ? "TRUE" : "FALSE");
 tmxr_debug_connect_line (lp, msg);
 
 if (lp->serport) {
@@ -1469,7 +1469,7 @@ if ((lp->destination) && (!lp->serport)) {
         lp->connecting = 0;
         }
     if ((!lp->modem_control) || (lp->modembits & TMXR_MDM_DTR)) {
-        sprintf (msg, "tmxr_reset_ln_ex() - connecting to %s", lp->destination);
+        snprintf (msg, sizeof msg, "tmxr_reset_ln_ex() - connecting to %s", lp->destination);
         tmxr_debug_connect_line (lp, msg);
         lp->connecting = sim_connect_sock_ex (lp->datagram ? lp->port : NULL, lp->destination, "localhost", NULL, (lp->datagram ? SIM_SOCK_OPT_DATAGRAM : 0) |
                                                                                                                   (lp->packet ? SIM_SOCK_OPT_NODELAY : 0));
@@ -1923,7 +1923,7 @@ if (lp->mp && lp->modem_control) {                  /* This API ONLY works on mo
                  TMXR_MDM_DTR)) {
                 char msg[512];
 
-                sprintf (msg, "tmxr_set_get_modem_bits() - establishing outgoing connection to: %s", lp->destination);
+                snprintf (msg, sizeof msg, "tmxr_set_get_modem_bits() - establishing outgoing connection to: %s", lp->destination);
                 tmxr_debug_connect_line (lp, msg);
                 lp->connecting = sim_connect_sock_ex (lp->datagram ? lp->port : NULL, lp->destination, "localhost", NULL, (lp->datagram ? SIM_SOCK_OPT_DATAGRAM : 0) |
                                                                                                                           (lp->packet ? SIM_SOCK_OPT_NODELAY : 0));
@@ -2806,7 +2806,7 @@ if (*cptr == '*') {
     if ((nfactor < 1) || (nfactor > 32))
         return -1;
     }
-sprintf (speed, "%d", nspeed);
+snprintf (speed, sizeof speed, "%d", nspeed);
 
 spd = speeds;
 while (1) {
@@ -2847,7 +2847,7 @@ if (*cptr == '*') {
         (speed == cptr)) {              /* AND just changing bps factor? */
         char speedbps[16];
 
-        sprintf (speedbps, "%d", lp->rxbps);
+        snprintf (speedbps, sizeof speedbps, "%d", lp->rxbps);
         lp->rxdeltausecs = (uint32)(_tmln_speed_delta (speedbps) / lp->bpsfactor);
         lp->txdeltausecs = lp->rxdeltausecs;
         return SCPE_OK;                 /* Done now */
@@ -2871,7 +2871,7 @@ if (lp->o_uptr)
 return SCPE_OK;
 }
 
-static const char* _tmxr_getname(int number, char* name)
+static const char* _tmxr_getname(int number, char* name, size_t name_size)
 {
   ETH_LIST  list[ETH_MAX_DEVICE];
   int count = eth_devices(ETH_MAX_DEVICE, list, TRUE);
@@ -2883,7 +2883,7 @@ static const char* _tmxr_getname(int number, char* name)
     return NULL;
     }
 
-  strcpy(name, list[number].name);
+  strlcpy(name, list[number].name, name_size);
   return name;
 }
 
@@ -2951,7 +2951,7 @@ while (*tptr) {
     datagram = mp->datagram;
     packet = mp->packet;
     if (mp->buffered)
-        sprintf(buffered, "%d", mp->buffered);
+        snprintf(buffered, sizeof buffered, "%d", mp->buffered);
     if (line != -1) {
         notelnet = listennotelnet = mp->notelnet;
         nomessage = listennomessage = mp->nomessage;
@@ -2996,12 +2996,12 @@ while (*tptr) {
                 }
             if (0 == MATCH_CMD (gbuf, "BUFFERED")) {
                 if ((NULL == cptr) || ('\0' == *cptr))
-                    strcpy (buffered, "32768");
+                    memcpy (buffered, "32768", sizeof "32768");
                 else {
                     i = (int32) get_uint (cptr, 10, 1024*1024, &r);
                     if (r || (i == 0))
                         return sim_messagef (SCPE_ARG, "Invalid Buffered Specifier: %s\n", cptr);
-                    sprintf(buffered, "%d", i);
+                    snprintf(buffered, sizeof buffered, "%d", i);
                     }
                 continue;
                 }
@@ -3123,7 +3123,7 @@ while (*tptr) {
             return sim_messagef (SCPE_OPENERR, "Can't open network port: %s\n", port);
         sim_close_sock (sock);
         sim_os_ms_sleep (2);                                    /* let the close finish (required on some platforms) */
-        strcpy (listen, port);
+        strlcpy (listen, port, sizeof listen);
         memset (acl, '\0', sizeof (acl));
         cptr = get_glyph (cptr, option, ';');
         while (option[0]) {
@@ -3455,7 +3455,7 @@ while (*tptr) {
                 && (strlen(fr_eth) == 5 || isdigit(fr_eth[5]))
                 ) {
                 num = atoi(&fr_eth[4]);
-                if (_tmxr_getname(num, fr_eth) == NULL) /* didn't translate */
+                if (_tmxr_getname(num, fr_eth, sizeof fr_eth) == NULL) /* didn't translate */
                     return SCPE_OPENERR;
             }
             /* Open the Ethernet device */
@@ -4371,7 +4371,7 @@ static const char *_tmxr_send_expect_line_name (const SEND *snd, const EXPECT *e
 static char line_name[CBUFSIZE];
 int i, j;
 
-strcpy (line_name, "");
+line_name[0] = 0;
 for (i=0; i<tmxr_open_device_count; ++i)
     for (j=0; j<tmxr_open_devices[i]->lines; ++j)
         if ((snd == &tmxr_open_devices[i]->ldsc[j].send) ||
@@ -4746,7 +4746,7 @@ for (i=0; i < mp->lines; i++) {
     mp->ldsc[i].uptr->tmxr = NULL;
     mp->ldsc[i].o_uptr->dynflags &= ~UNIT_TM_POLL;                  /* no polling */
     mp->ldsc[i].o_uptr->tmxr = NULL;
-    sprintf (portname, "%s:%d", mp->dptr->name, i);
+    snprintf (portname, sizeof portname, "%s:%d", mp->dptr->name, i);
     expect_cmd (0, portname);                           /* clear dangling expects */
     send_cmd (0, portname);                             /* clear dangling send data */
     }
@@ -5938,7 +5938,7 @@ for (j=0; 1; ++j) {
             else {
                 char octal[8];
 
-                sprintf(octal, "\\%03o", (u_char)chr);
+                snprintf(octal, sizeof octal, "\\%03o", (u_char)chr);
                 tmxr_buf_debug_string (octal);
                 }
             tmxr_buf_debug_char ('_');
@@ -6058,7 +6058,7 @@ if ((dptr) && (dbits & dptr->dctrl)) {
                         else {
                             char octal[8];
 
-                            sprintf(octal, "\\%03o", (u_char)buf[i]);
+                            snprintf(octal, sizeof octal, "\\%03o", (u_char)buf[i]);
                             tmxr_buf_debug_string (octal);
                             }
                         tmxr_buf_debug_char ('_');
@@ -6173,12 +6173,12 @@ SIM_TEST((sim_parse_addr ("localhost:telnet", host, sizeof(host), "localhost", p
 SIM_TEST((sim_parse_addr ("telnet", host, sizeof(host), "localhost", port, sizeof(port), "1234", NULL) == -1) || (strcmp(host, "localhost")) || (strcmp(port,"telnet")));
 dptr->dctrl = 0xFFFFFFFF;
 dptr->dctrl &= ~TMXR_DBG_TRC;
-sprintf (cmd, "%s -u localhost:65500;telnet;nomessage", dptr->name);
+snprintf (cmd, sizeof cmd, "%s -u localhost:65500;telnet;nomessage", dptr->name);
 SIM_TEST(attach_cmd (0, cmd));
 tmxr = (TMXR *)dptr->units->tmxr;
 ln = &tmxr->ldsc[tmxr->lines - 1];
 SIM_TEST(detach_cmd (0, dptr->name));
-sprintf (cmd, "%s -u localhost:65500;notelnet", dptr->name);
+snprintf (cmd, sizeof cmd, "%s -u localhost:65500;notelnet", dptr->name);
 SIM_TEST(attach_cmd (0, cmd));
 tmxr = (TMXR *)dptr->units->tmxr;
 ln = &tmxr->ldsc[tmxr->lines - 1];

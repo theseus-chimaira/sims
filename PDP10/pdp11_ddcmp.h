@@ -210,11 +210,11 @@ if (msg[0] == DDCMP_ENQ) {
     
     if (eat <= (trollHungerLevel * 2)) {    /* Hungry? */
         if (eat <= trollHungerLevel) {      /* Eat the packet */
-            sprintf (msgbuf, "troll ate a %s control message\n", rx ? "RCV" : "XMT");
+            snprintf (msgbuf, sizeof msgbuf, "troll ate a %s control message\n", rx ? "RCV" : "XMT");
             tmxr_debug_msg (rx ? DDCMP_DBG_PRCV : DDCMP_DBG_PXMT, lp, msgbuf);
             return TRUE;
             }
-        sprintf (msgbuf, "troll bit a %s control message\n", rx ? "RCV" : "XMT");
+        snprintf (msgbuf, sizeof msgbuf, "troll bit a %s control message\n", rx ? "RCV" : "XMT");
         tmxr_debug_msg (rx ? DDCMP_DBG_PRCV : DDCMP_DBG_PXMT, lp, msgbuf);
         msg[6] ^= rx? 0114: 0154;           /* Eat the CRC */
         }
@@ -224,17 +224,17 @@ else {
 
     if (eat <= (trollHungerLevel * 3)) {    /* Hungry? */
         if (eat <= trollHungerLevel) {      /* Eat the packet */
-            sprintf (msgbuf, "troll ate a %s %s message\n", rx ? "RCV" : "XMT", (msg[0] == DDCMP_SOH)? "data" : "maintenance");
+            snprintf (msgbuf, sizeof msgbuf, "troll ate a %s %s message\n", rx ? "RCV" : "XMT", (msg[0] == DDCMP_SOH)? "data" : "maintenance");
             tmxr_debug_msg (rx ? DDCMP_DBG_PRCV : DDCMP_DBG_PXMT, lp, msgbuf);
             return TRUE;
             }
         if (eat <= (trollHungerLevel * 2)) { /* HCRC */
-            sprintf (msgbuf, "troll bit a %s %s message\n", rx ? "RCV" : "XMT", (msg[0] == DDCMP_SOH)? "data" : "maintenance");
+            snprintf (msgbuf, sizeof msgbuf, "troll bit a %s %s message\n", rx ? "RCV" : "XMT", (msg[0] == DDCMP_SOH)? "data" : "maintenance");
             tmxr_debug_msg (rx ? DDCMP_DBG_PRCV : DDCMP_DBG_PXMT, lp, msgbuf);
             msg[6] ^= rx? 0124: 0164;
             } 
         else {                            /* DCRC */
-            sprintf (msgbuf, "troll bit %s %s DCRC\n", (rx? "RCV" : "XMT"), ((msg[0] == DDCMP_SOH)? "data" : "maintenance"));
+            snprintf (msgbuf, sizeof msgbuf, "troll bit %s %s DCRC\n", (rx? "RCV" : "XMT"), ((msg[0] == DDCMP_SOH)? "data" : "maintenance"));
             tmxr_debug_msg (rx ? DDCMP_DBG_PRCV : DDCMP_DBG_PXMT, lp, msgbuf);
             msg[8] ^= rx? 0114: 0154;       /* Rather than find the CRC, the first data byte will do */
             }
@@ -296,7 +296,7 @@ while (TMXR_VALID & (c = tmxr_getc_ln (lp))) {
             *psize = DDCMP_HEADER_SIZE;
             lp->rxpboffset = 0;
             if (lp->mp->lines > 1)
-                sprintf (msg, "Line%d: <<< RCV Packet", (int)(lp-lp->mp->ldsc));
+                snprintf (msg, sizeof msg, "Line%d: <<< RCV Packet", (int)(lp-lp->mp->ldsc));
             else
                 strcpy (msg, "<<< RCV Packet");
             ddcmp_packet_trace (DDCMP_DBG_PRCV, lp->mp->dptr, msg, lp->rxpb, *psize);
@@ -310,7 +310,7 @@ while (TMXR_VALID & (c = tmxr_getc_ln (lp))) {
             *pbuf = lp->rxpb;
             *psize = (uint16)(10 + payloadsize);
             if (lp->mp->lines > 1)
-                sprintf (msg, "Line%d: <<< RCV Packet", (int)(lp-lp->mp->ldsc));
+                snprintf (msg, sizeof msg, "Line%d: <<< RCV Packet", (int)(lp-lp->mp->ldsc));
             else
                 strcpy (msg, "<<< RCV Packet");
             ddcmp_packet_trace (DDCMP_DBG_PRCV, lp->mp->dptr, msg, lp->rxpb, *psize);
@@ -363,7 +363,7 @@ memcpy (lp->txpb, buf, size);
 lp->txppsize = size;
 lp->txppoffset = 0;
 if (lp->mp->lines > 1)
-    sprintf (msg, "Line%d: >>> XMT Packet", (int)(lp-lp->mp->ldsc));
+    snprintf (msg, sizeof msg, "Line%d: >>> XMT Packet", (int)(lp-lp->mp->ldsc));
 else
     strcpy (msg, ">>> XMT Packet");
 ddcmp_packet_trace (DDCMP_DBG_PXMT, lp->mp->dptr, msg, lp->txpb, lp->txppsize);

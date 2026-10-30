@@ -3843,7 +3843,7 @@ for (density = count = 0; density < BPI_COUNT; density++) {
             strlcat (string, "{", string_size);
         else
             strlcat (string, "|", string_size);
-        sprintf (density_str, "%d", bpi[density]);
+        snprintf (density_str, sizeof density_str, "%d", bpi[density]);
         strlcat (string, density_str, string_size);
         }
     }
@@ -4492,7 +4492,7 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     to_ansi_a (hdr1->file_ident, fn, sizeof (hdr1->file_ident));
     if (strlen (fn) > 17) {
         to_ansi_a (hdr4->extra_name, fn + 17, sizeof (hdr4->extra_name));
-        sprintf (extra_name_used, "%02d", (int)(strlen (fn) - 17));
+        snprintf (extra_name_used, sizeof extra_name_used, "%02d", (int)(strlen (fn) - 17));
         }
     memcpy (hdr4->extra_name_used, extra_name_used, 2);
     memcpy (hdr1->file_set, vol->ident, sizeof (hdr1->file_set));
@@ -4516,9 +4516,9 @@ static void ansi_make_HDR2 (HDR2 *hdr, t_bool fixed_record, size_t block_size, s
     memcpy (hdr->type, "HDR", 3);
     hdr->num = '2';
     hdr->record_format = ansi->record_format ? ansi->record_format : (fixed_record ? 'F' : 'D');
-    sprintf (size, "%05d", (int)block_size);
+    snprintf (size, sizeof size, "%05d", (int)block_size);
     memcpy (hdr->block_length, size, sizeof (hdr->block_length));
-    sprintf (size, "%05d", (ansi->zero_record_length) ? 0 : (int)record_size);
+    snprintf (size, sizeof size, "%05d", (ansi->zero_record_length) ? 0 : (int)record_size);
     memcpy (hdr->record_length, size, sizeof (hdr->record_length));
     hdr->carriage_control = ansi->carriage_control ? ansi->carriage_control : (fixed_record ? 'M' : ' ');
     memcpy (hdr->buffer_offset, "00", 2);
@@ -4548,7 +4548,7 @@ static void ansi_fill_text_buffer (FILE *f, char *buf, size_t buf_size, size_t r
                 (void)fseek (f, start, SEEK_SET);
                 break;
                 }
-            sprintf (rec_size_str, "%04u", (int)(rec_size + 4));
+            snprintf (rec_size_str, sizeof rec_size_str, "%04u", (int)(rec_size + 4));
             memcpy (buf + offset, rec_size_str, 4);
             memcpy (buf + offset + 4, tmp, rec_size);
             offset += 4 + rec_size;
@@ -4991,7 +4991,7 @@ if (!(ansi->nohdr3)) {               /* Need HDR3? */
         else
             memcpy (&hdr3, ansi->hdr3_crlf_line_endings, sizeof (hdr3));
         }
-    sprintf (size, "%04x", (uint16)rms_record_size);
+    snprintf (size, sizeof size, "%04x", (uint16)rms_record_size);
     memcpy (hdr3.rms_attributes, size, 4);
     }
 memory_tape_add_block (tape, (uint8 *)&hdr1, sizeof (hdr1));
