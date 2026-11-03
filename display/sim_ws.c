@@ -414,14 +414,28 @@ ws_init(const char *name, int xp, int yp, int colors, void *dptr)
     }
     arrow_cursor = ws_create_cursor (arrow);
     cross_cursor = ws_create_cursor (cross);
+    if (arrow_cursor == NULL || cross_cursor == NULL)
+        goto failed;
     ret = (0 == vid_open ((DEVICE *)dptr, name, xp*pix_size, yp*pix_size, 0));
-    if (ret)
-        vid_set_cursor (1, arrow_cursor->width, arrow_cursor->height, arrow_cursor->data, arrow_cursor->mask, arrow_cursor->hot_x, arrow_cursor->hot_y);
+    if (!ret)
+        goto failed;
+    vid_set_cursor (1, arrow_cursor->width, arrow_cursor->height, arrow_cursor->data, arrow_cursor->mask, arrow_cursor->hot_x, arrow_cursor->hot_y);
     ws_palette[0] = vid_map_rgb (0x00, 0x00, 0x00);     /* black */
     ws_palette[1] = vid_map_rgb (0xFF, 0xFF, 0xFF);     /* white */
     for (i=0; i<xpixels*ypixels; i++)
         surface[i] = ws_palette[0];
-    return ret;
+    return 1;
+
+failed:
+    /* A failed SDL open leaves no pixel format for vid_map_rgb().
+     * Never turn a recoverable display error into a null dereference. */
+    ws_free_cursor (arrow_cursor);
+    ws_free_cursor (cross_cursor);
+    arrow_cursor = NULL;
+    cross_cursor = NULL;
+    free (surface);
+    surface = NULL;
+    return 0;
 }
 
 void
@@ -431,6 +445,8 @@ if (ws_headless)                                        /* no SDL resources */
     return;
 ws_free_cursor(arrow_cursor);
 ws_free_cursor(cross_cursor);
+arrow_cursor = NULL;
+cross_cursor = NULL;
 vid_close();
 }
 

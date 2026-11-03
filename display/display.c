@@ -1066,6 +1066,10 @@ display_init(enum display_type type, int sf, void *dptr)
     return 1;
 
  failed:
+    /* Failed SDL setup must not retain the allocated phosphor points.
+     * No display is active and display_close() will not be called. */
+    free (points);
+    points = NULL;
     fprintf(stderr, "Display initialization failed\r\n");
     return 0;
 }
@@ -1080,6 +1084,7 @@ display_close(void *dptr)
         return;
 
     free (points);
+    points = NULL;
     ws_shutdown();
 
     initialized = 0;

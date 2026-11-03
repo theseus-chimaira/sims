@@ -390,25 +390,24 @@ MOUSE_EVENT_QUEUE vid_mouse_events;                     /* mouse events */
 
 static VID_DISPLAY *vid_get_event_window (SDL_Event *ev, Uint32 windowID)
 {
-static Uint32 lastID = 0xffffffff;
-static VID_DISPLAY *last_display = NULL;
 VID_DISPLAY *vptr;
 SDL_KeyboardEvent *kev;
 SDL_MouseButtonEvent *bev;
 SDL_MouseMotionEvent *mev;
 SDL_WindowEvent *wev;
 SDL_UserEvent *uev;
-SDL_version ver;
-
-if (windowID == lastID)
-    return last_display;
+/* Window IDs may be reused, and a cached display may have been closed.
+ * There are normally only one or two windows, so walk the live list. */
 
 for (vptr = &vid_first; vptr != NULL; vptr = vptr->next) {
-    if (windowID == vptr->vid_windowID) {
-        lastID = windowID;
-        return last_display = vptr;
-        }
+    if (vptr->vid_window != NULL && windowID == vptr->vid_windowID)
+        return vptr;
     }
+
+/* SDL can deliver window notifications queued before a close.  An ID
+ * which SDL no longer knows is a stale event, not an SDL library bug. */
+if (SDL_GetWindowFromID (windowID) == NULL)
+    return NULL;
 
 switch (ev->type) {
     case SDL_KEYDOWN:
@@ -476,12 +475,8 @@ switch (ev->type) {
         break;
     }
 
-SDL_GetVersion(&ver);
-
-sim_messagef (SCPE_OK,
-"\nSIMH has encountered a bug in SDL2.  An upgrade to SDL2\n"
-"version 2.0.14 should fix this problem. You are running "
-"version %d.%d.%d.\n", ver.major, ver.minor, ver.patch);
+sim_messagef (SCPE_OK, "SDL window ID %u is not registered with SIMH.\n",
+              windowID);
 
 return NULL;
 }
@@ -593,10 +588,9 @@ user_event.user.data1 = vptr;
 user_event.user.data2 = NULL;
 SDL_PushEvent (&user_event);
 
-while ((!vptr->vid_ready) && (++wait_count < 20))
+while (vptr->vid_active_window && !vptr->vid_ready && (++wait_count < 20))
     sim_os_ms_sleep (100);
 if (!vptr->vid_ready) {
-    vid_close ();
     return SCPE_OPENERR;
     }
 return SCPE_OK;
@@ -605,6 +599,7 @@ return SCPE_OK;
 static int vid_create_window (VID_DISPLAY *vptr)
 {
 int wait_count = 0;
+int status;
 
 if (vid_thread_handle == NULL)
     vid_thread_handle = SDL_CreateThread (vid_thread, "vid-thread", vptr);
@@ -622,10 +617,15 @@ if (vid_thread_handle == NULL) {
     vid_close ();
     return SCPE_OPENERR;
     }
-while ((!vptr->vid_ready) && (++wait_count < 20))
+while (vptr->vid_active_window && !vptr->vid_ready && (++wait_count < 20))
     sim_os_ms_sleep (100);
 if (!vptr->vid_ready) {
-    vid_close ();
+    /* A failed secondary window must not close the primary display.
+     * Reap the worker only if no SDL window was ever opened. */
+    if (!vid_active && vid_thread_handle) {
+        SDL_WaitThread (vid_thread_handle, &status);
+        vid_thread_handle = NULL;
+        }
     return SCPE_OPENERR;
     }
 return SCPE_OK;
@@ -744,8 +744,21 @@ memset (motion_callback, 0, sizeof motion_callback);
 memset (button_callback, 0, sizeof button_callback);
 
 stat = vid_create_window (vptr);
-if (stat != SCPE_OK)
+if (stat != SCPE_OK) {
+    vptr->vid_active_window = FALSE;
+    vptr->vid_dev = NULL;
+    if (!vid_active) {
+        if (vid_mouse_events.sem) {
+            SDL_DestroySemaphore (vid_mouse_events.sem);
+            vid_mouse_events.sem = NULL;
+            }
+        if (vid_key_events.sem) {
+            SDL_DestroySemaphore (vid_key_events.sem);
+            vid_key_events.sem = NULL;
+            }
+        }
     return stat;
+    }
 
 sim_debug (SIM_VID_DBG_VIDEO|SIM_VID_DBG_KEY|SIM_VID_DBG_MOUSE, vptr->vid_dev, "vid_open() - Success\n");
 
@@ -755,7 +768,9 @@ return SCPE_OK;
 t_stat vid_open_window (VID_DISPLAY **vptr, DEVICE *dptr, const char *title, uint32 width, uint32 height, int flags)
 {
 t_stat r;
-*vptr = (VID_DISPLAY *)malloc (sizeof (VID_DISPLAY));
+/* vid_destroy() examines cursor, texture and mutex pointers.  Every
+ * newly allocated display must start with all those fields null. */
+*vptr = (VID_DISPLAY *)calloc (1, sizeof (VID_DISPLAY));
 if (*vptr == NULL)
     return SCPE_NXM;
 (*vptr)->next = vid_first.next;
@@ -792,7 +807,6 @@ if (vptr->vid_ready) {
 
     while (SDL_PushEvent (&user_event) < 0)
         sim_os_ms_sleep (10);
-    vptr->vid_dev = NULL;
     }
 if (vid_thread_handle && vid_active <= 1) {
     SDL_WaitThread (vid_thread_handle, &status);
@@ -802,6 +816,7 @@ while (vptr->vid_ready)
     sim_os_ms_sleep (10);
 
 vptr->vid_active_window = FALSE;
+vptr->vid_dev = NULL;
 if (!vid_active && vid_mouse_events.sem) {
     SDL_DestroySemaphore(vid_mouse_events.sem);
     vid_mouse_events.sem = NULL;
@@ -810,6 +825,10 @@ if (!vid_active && vid_key_events.sem) {
     SDL_DestroySemaphore(vid_key_events.sem);
     vid_key_events.sem = NULL;
     }
+/* An extra display was allocated by vid_open_window().  The event
+ * thread has unlinked it and finished destroying its SDL resources. */
+if (vptr != &vid_first)
+    free (vptr);
 return SCPE_OK;
 }
 
@@ -822,16 +841,15 @@ return SCPE_OK;
 
 t_stat vid_close_all (void)
 {
-VID_DISPLAY *vptr;
 vid_close ();
-for (vptr = vid_first.next; vptr != NULL; vptr = vptr->next)
-    vid_close_window (vptr);
+while (vid_first.next != NULL)
+    vid_close_window (vid_first.next);
 return SCPE_OK;
 }
 
 t_stat vid_poll_kb (SIM_KEY_EVENT *ev)
 {
-if (SDL_SemTryWait (vid_key_events.sem) == 0) {         /* get lock */
+if (vid_key_events.sem && SDL_SemTryWait (vid_key_events.sem) == 0) {
     if (vid_key_events.count > 0) {                     /* events in queue? */
         *ev = vid_key_events.events[vid_key_events.head++];
         vid_key_events.count--;
@@ -850,7 +868,7 @@ t_stat vid_poll_mouse (SIM_MOUSE_EVENT *ev)
 t_stat stat = SCPE_EOF;
 SIM_MOUSE_EVENT *nev;
 
-if (SDL_SemTryWait (vid_mouse_events.sem) == 0) {
+if (vid_mouse_events.sem && SDL_SemTryWait (vid_mouse_events.sem) == 0) {
     if (vid_mouse_events.count > 0) {
         stat = SCPE_OK;
         *ev = vid_mouse_events.events[vid_mouse_events.head++];
@@ -1807,20 +1825,15 @@ event->data1 = NULL;
 
 static int vid_new_window (VID_DISPLAY *vptr)
 {
-SDL_CreateWindowAndRenderer (vptr->vid_width, vptr->vid_height, SDL_WINDOW_SHOWN, &vptr->vid_window, &vptr->vid_renderer);
-
-if ((vptr->vid_window == NULL) || (vptr->vid_renderer == NULL)) {
-    sim_printf ("%s: Error Creating Video Window: %s\n", vid_dname(vptr->vid_dev), SDL_GetError());
-    SDL_Quit ();
-    return 0;
-    }
+if (SDL_CreateWindowAndRenderer (vptr->vid_width, vptr->vid_height,
+    SDL_WINDOW_SHOWN, &vptr->vid_window, &vptr->vid_renderer) != 0 ||
+    vptr->vid_window == NULL || vptr->vid_renderer == NULL)
+    goto fail;
 
 vptr->vid_draw_mutex = SDL_CreateMutex();
 
 if (vptr->vid_draw_mutex == NULL) {
-    fprintf (stderr, "%s: SDL_CreateMutex failed: %s\n", vid_dname(vptr->vid_dev), SDL_GetError ());
-    SDL_Quit ();
-    return 0;
+    goto fail;
     }
 
 SDL_SetRenderDrawColor (vptr->vid_renderer, 0, 0, 0, 255);
@@ -1832,16 +1845,12 @@ vptr->vid_texture = SDL_CreateTexture (vptr->vid_renderer,
                                  SDL_TEXTUREACCESS_STREAMING,
                                  vptr->vid_width, vptr->vid_height);
 if (!vptr->vid_texture) {
-    sim_printf ("%s: Error configuring Video environment: %s\n", vid_dname(vptr->vid_dev), SDL_GetError());
-    SDL_DestroyRenderer(vptr->vid_renderer);
-    vptr->vid_renderer = NULL;
-    SDL_DestroyWindow(vptr->vid_window);
-    vptr->vid_window = NULL;
-    SDL_Quit ();
-    return 0;
+    goto fail;
     }
 
 vptr->vid_format = SDL_AllocFormat (SDL_PIXELFORMAT_ARGB8888);
+if (vptr->vid_format == NULL)
+    goto fail;
 
 #ifdef SDL_WINDOW_RESIZABLE
 if (vptr->vid_flags & SIM_VID_RESIZABLE) {
@@ -1872,6 +1881,34 @@ vptr->vid_data_last = NULL;
 
 vid_active++;
 return 1;
+
+fail:
+/* Only this display belongs to the failed open.  Shutting down SDL here
+ * would invalidate the event loop and every other active window. */
+sim_printf ("%s: Error Creating Video Window: %s\n",
+            vid_dname (vptr->vid_dev), SDL_GetError ());
+if (vptr->vid_format) {
+    SDL_FreeFormat (vptr->vid_format);
+    vptr->vid_format = NULL;
+    }
+if (vptr->vid_texture) {
+    SDL_DestroyTexture (vptr->vid_texture);
+    vptr->vid_texture = NULL;
+    }
+if (vptr->vid_draw_mutex) {
+    SDL_DestroyMutex (vptr->vid_draw_mutex);
+    vptr->vid_draw_mutex = NULL;
+    }
+if (vptr->vid_renderer) {
+    SDL_DestroyRenderer (vptr->vid_renderer);
+    vptr->vid_renderer = NULL;
+    }
+if (vptr->vid_window) {
+    SDL_DestroyWindow (vptr->vid_window);
+    vptr->vid_window = NULL;
+    }
+vptr->vid_windowID = 0;
+return 0;
 }
 
 t_stat vid_set_alpha_mode (VID_DISPLAY *vptr, int mode)
@@ -1907,17 +1944,21 @@ return SCPE_OK;
 static void vid_destroy (VID_DISPLAY *vptr)
 {
 VID_DISPLAY *parent;
-vptr->vid_ready = FALSE;
 if (vptr->vid_cursor) {
     SDL_FreeCursor (vptr->vid_cursor);
     vptr->vid_cursor = NULL;
     }
 SDL_DestroyTexture(vptr->vid_texture);
 vptr->vid_texture = NULL;
+if (vptr->vid_format) {
+    SDL_FreeFormat (vptr->vid_format);
+    vptr->vid_format = NULL;
+    }
 SDL_DestroyRenderer(vptr->vid_renderer);
 vptr->vid_renderer = NULL;
 SDL_DestroyWindow(vptr->vid_window);
 vptr->vid_window = NULL;
+vptr->vid_windowID = 0;
 SDL_DestroyMutex (vptr->vid_draw_mutex);
 vptr->vid_draw_mutex = NULL;
 for (parent = &vid_first; parent != NULL; parent = parent->next) {
@@ -1925,6 +1966,8 @@ for (parent = &vid_first; parent != NULL; parent = parent->next) {
         parent->next = vptr->next;
     }
 vid_active--;
+/* Publish completion only after resources and list links are released. */
+vptr->vid_ready = FALSE;
 }
 
 int vid_video_events (VID_DISPLAY *vptr0)
@@ -2055,6 +2098,7 @@ sim_debug (SIM_VID_DBG_VIDEO|SIM_VID_DBG_KEY|SIM_VID_DBG_MOUSE, vptr0->vid_dev, 
 sim_os_set_thread_priority (PRIORITY_ABOVE_NORMAL);
 
 if (!vid_new_window (vptr0)) {
+    vptr0->vid_active_window = FALSE;
     return 0;
     }
 
@@ -2223,8 +2267,10 @@ while (vid_active) {
                         }
                     if (event.user.code == EVENT_OPEN) {
                         VID_DISPLAY *vptr = (VID_DISPLAY *)event.user.data1;
-                        vid_new_window (vptr);
-                        vptr->vid_ready = TRUE;
+                        if (vid_new_window (vptr))
+                            vptr->vid_ready = TRUE;
+                        else
+                            vptr->vid_active_window = FALSE;
                         event.user.code = 0;    /* Mark as done */
                         }
                     if (event.user.code != 0) {
@@ -2270,6 +2316,7 @@ stat = SDL_Init (SDL_INIT_VIDEO);
 
 if (stat) {
     sim_printf ("SDL Video subsystem can't initialize\n");
+    vptr->vid_active_window = FALSE;
     return 0;
     }
 vid_video_events (vptr);
