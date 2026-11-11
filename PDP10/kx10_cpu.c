@@ -639,7 +639,7 @@ MTAB cpu_mod[] = {
     { UNIT_MSIZE, 4, "64K", "64K", &cpu_set_size },
     { UNIT_MSIZE, 6, "96K", "96K", &cpu_set_size },
     { UNIT_MSIZE, 8, "128K", "128K", &cpu_set_size },
-    { UNIT_MSIZE, 12, "196K", "196K", &cpu_set_size },
+    { UNIT_MSIZE, 12, "192K", "192K", &cpu_set_size },
     { UNIT_MSIZE, 16, "256K", "256K", &cpu_set_size },
 #if KI_22BIT|KI|ITS|KS
     { UNIT_MSIZE, 32, "512K", "512K", &cpu_set_size },
