@@ -10,6 +10,44 @@ This document records the PDP-6 simulator discrepancies that were found while
 bringing up DAIMOS.  The fixes belong in the simulator: guest software should
 not carry compatibility code for incorrect device semantics.
 
+## Type 551 DECtape / Type 136: first block-number search (v1524)
+
+File: `PDP10/pdp6_dtc.c`.
+
+On a newly selected, stopped Type 551 transport, the model sets its
+controller request to `DTB_REQ`. The first forward block-number
+mark (RBN 0) was delivered while that request was still pending.
+The `FNC_SRCH` handler forwarded block marks to the already-armed
+Type 136 only when `DTB_ACT` was set, so the first mark was
+silently skipped. The second and later marks worked.
+
+This made a physical write/read of reserved block zero fail
+on the PDP-6 even with a fully attached, otherwise functional
+DECtape, while ordinary blocks 1, 0144, and 0200 worked.
+DAIMOS v1520 relies on its existing reserved block zero for
+the native DTFS `DTVOL1` identity. This is a controller
+model error, not evidence that the filesystem must relocate
+its identity or work around a broken search.
+
+The simulator now changes a pending `FNC_SRCH` request from
+`DTB_REQ` to `DTB_ACT` **before delivering the first forward
+RBN mark**. The Type 136 transfer and actual DAIMOS tape
+driver remain unchanged.
+
+DAIMOS testkit `daimos-dtc-first-mark-v1524.sh` runs
+real PDP-6 Type-551/Type-136 physical DTC3 one-block
+write/read at RBN 0, 1, and 0144, using independent
+host-generated native DTFS images. All three PASS on the
+corrected simulator. The old installed v1470 simulator
+reproducibly FAILS RBN 0 at its actual native assertion,
+and previously passed RBN 1 and 0144. Existing native
+stream/reverse/select-status/watchdog and the v1522/v1523
+KCORE source-linked regressions PASS unchanged.
+
+Full booted guest secondary DTFS mount and open-FILE recovery
+requires separate acceptance; a passing physical block-zero
+driver test is not that acceptance.
+
 ## Type 630 DCS
 
 File: `PDP10/pdp6_dcs.c`

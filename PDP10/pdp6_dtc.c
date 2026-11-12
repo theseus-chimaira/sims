@@ -802,6 +802,17 @@ dtc_svc (UNIT *uptr)
                       (*status) |= DTB_DONE;
                   switch (DTC_GETFNC(uptr->CMD)) {
                   case FNC_SRCH:
+                       /* The initial block-number mark is usable.  On a
+                        * freshly started transport DTB_REQ is still set at
+                        * block zero; waiting for the NEXT mark to activate
+                        * the search silently skips RBN 0.  The Type-136
+                        * receiver is already armed by the controller CONO,
+                        * so publish the pending request before delivering
+                        * this first block number. */
+                       if ((*status) & DTB_REQ) {
+                           (*status) &= ~(DTB_REQ|DTB_NULL);
+                           (*status) |= DTB_ACT;
+                       }
                        if ((*status) & DTB_ACT) {
                            (void)dct_write(dtc_dct, &data, 6);
                            (*status) |= DTB_DONE;
