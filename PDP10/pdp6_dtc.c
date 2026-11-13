@@ -242,6 +242,55 @@ int   dtc_dct = 0;
  */
 static int dtc_selected_unit = -1;
 
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+/* Diagnostic simulator only: fail a Type-551 block write after N
+ * changed 36-bit words reach the tape buffer, keeping other words old.
+ * Normal simulators have no such modifier or per-word test overhead. */
+extern UNIT dtc_unit[];
+static UNIT *dtc_partial_unit_v1529;
+static unsigned int dtc_partial_block_v1529;
+static unsigned int dtc_partial_limit_v1529;
+static unsigned int dtc_partial_written_v1529;
+static unsigned int dtc_partial_physical_v1529;
+static int dtc_partial_tripped_v1529;
+
+/* Keep failing retries after the first physical damage. Otherwise an
+ * automatic controller retry could silently finish the same write. */
+static int
+dtc_partial_trip_v1529 (UNIT *uptr, int selected, int blk, int32 *status)
+{
+    unsigned int unit;
+
+    if (!selected || uptr != dtc_partial_unit_v1529 ||
+        (unsigned int)blk != dtc_partial_block_v1529 ||
+        dtc_partial_written_v1529 < dtc_partial_limit_v1529)
+        return 0;
+    (*status) |= DTB_ILL;
+    uptr->CMD = DTC_FNC_STOP;
+    if (!dtc_partial_tripped_v1529) {
+        unit = (unsigned int)(uptr - dtc_unit);
+        sim_printf("DTC%u: V1529 PARTIALWRITE block %04o after %u "
+            "changed word (%u physical words)\n", unit,
+            (unsigned int)blk, dtc_partial_written_v1529,
+            dtc_partial_physical_v1529);
+        dtc_partial_tripped_v1529 = 1;
+    }
+    return 1;
+}
+
+static void
+dtc_partial_record_v1529 (UNIT *uptr, int selected, int blk,
+    uint64 prior, uint64 current)
+{
+    if (!selected || uptr != dtc_partial_unit_v1529 ||
+        (unsigned int)blk != dtc_partial_block_v1529)
+        return;
+    ++dtc_partial_physical_v1529;
+    if (prior != current)
+        ++dtc_partial_written_v1529;
+}
+#endif
+
 t_stat         dtc_devio(uint32 dev, uint64 *data);
 t_stat         dtc_svc (UNIT *uptr);
 t_stat         dtc_boot(int32 unit_num, DEVICE * dptr);
@@ -251,6 +300,10 @@ t_stat         dtc_reset (DEVICE *dptr);
 t_stat         dtc_attach (UNIT *uptr, CONST char *cptr);
 void           dtc_flush (UNIT *uptr);
 t_stat         dtc_detach (UNIT *uptr);
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+t_stat         dtc_set_partial_write_v1529 (UNIT *, int32, CONST char *, void *);
+t_stat         dtc_clear_partial_write_v1529 (UNIT *, int32, CONST char *, void *);
+#endif
 
 /* DT data structures
 
@@ -302,6 +355,14 @@ REG dtc_reg[] = {
     };
 
 MTAB dtc_mod[] = {
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+    { MTAB_XTD|MTAB_VUN|MTAB_VALR, 0, NULL, "PARTIALWRITE",
+      &dtc_set_partial_write_v1529, NULL, NULL,
+      "Fail writes after BLOCK:CHANGED_WORDS changes" },
+    { MTAB_XTD|MTAB_VUN, 0, NULL, "NOPARTIALWRITE",
+      &dtc_clear_partial_write_v1529, NULL, NULL,
+      "Disarm the partial-write fault" },
+#endif
     { MTAB_XTD|MTAB_VUN, 0, "write enabled", "WRITEENABLED", 
         &set_writelock, &show_writelock,   NULL, "Write enable tape drive" },
     { MTAB_XTD|MTAB_VUN, 1, NULL, "LOCKED", 
@@ -657,6 +718,27 @@ dtc_svc (UNIT *uptr)
                        break;
 
                   case FNC_WRIT:
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+                       if (dtc_partial_trip_v1529(uptr, selected, blk, status))
+                           break;
+                       {
+                           uint64 prior_v1529 = ((uint64)fbuf[off] << 18) |
+                               (uint64)fbuf[off+1];
+#endif
+                       if (dct_read(dtc_dct, &data, 6) == 0) {
+                           (*status) &= ~DTB_ACT;
+                           (*status) |= DTB_INCBLK|DTB_DONE;
+                       }
+                       fbuf[off] = (data >> 18) & RMASK;
+                       fbuf[off+1] = data & RMASK;
+                       uptr->WRITTEN = 1;
+                       uptr->hwmark = uptr->capac;
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+                       dtc_partial_record_v1529(uptr, selected, blk,
+                           prior_v1529, data);
+                       }
+#endif
+                       break;
                   case FNC_WALL:
                        if (dct_read(dtc_dct, &data, 6) == 0) {
                            (*status) &= ~DTB_ACT;
@@ -922,12 +1004,24 @@ dtc_svc (UNIT *uptr)
                           (*status) |= DTB_DONE;
                        break;
                   case FNC_WRIT:
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+                       if (dtc_partial_trip_v1529(uptr, selected, blk, status))
+                           break;
+                       {
+                           uint64 prior_v1529 = ((uint64)fbuf[off] << 18) |
+                               (uint64)fbuf[off+1];
+#endif
                        if (dct_read(dtc_dct, &data, 6) == 0)
                           (*status) |= DTB_DONE;
                        fbuf[off] = (data >> 18) & RMASK;
                        fbuf[off+1] = data & RMASK;
                        uptr->WRITTEN = 1;
                        uptr->hwmark = uptr->capac;
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+                       dtc_partial_record_v1529(uptr, selected, blk,
+                           prior_v1529, data);
+                       }
+#endif
                        break;
                   case FNC_WMRK:
                        (*status) |= DTB_ILL;
@@ -1133,6 +1227,45 @@ dtc_boot(int32 unit_num, DEVICE * dptr)
     return SCPE_OK;
 }
 
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+/* SET DTCn PARTIALWRITE=0145:1: block is octal, count decimal
+ * number of CHANGED 36-bit words before persistent failure.
+ * Diagnostic-only simulator build; not present in production SIMH. */
+t_stat
+dtc_set_partial_write_v1529 (UNIT *uptr, int32 val, CONST char *cptr,
+    void *desc)
+{
+    unsigned int block, count;
+    char tail;
+
+    (void)val;
+    (void)desc;
+    if (uptr == NULL || cptr == NULL ||
+        sscanf(cptr, "%o:%u%c", &block, &count, &tail) != 2 ||
+        block > 01101U || count == 0U || count >= 0200U)
+        return SCPE_ARG;
+    dtc_partial_unit_v1529 = uptr;
+    dtc_partial_block_v1529 = block;
+    dtc_partial_limit_v1529 = count;
+    dtc_partial_written_v1529 = 0U;
+    dtc_partial_physical_v1529 = 0U;
+    dtc_partial_tripped_v1529 = 0;
+    return SCPE_OK;
+}
+
+t_stat
+dtc_clear_partial_write_v1529 (UNIT *uptr, int32 val,
+    CONST char *cptr, void *desc)
+{
+    (void)uptr;
+    (void)val;
+    (void)cptr;
+    (void)desc;
+    dtc_partial_unit_v1529 = NULL;
+    return SCPE_OK;
+}
+#endif
+
 /* set DCT channel and unit. */
 t_stat
 dtc_set_dct (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
@@ -1165,6 +1298,9 @@ t_stat
 dtc_reset (DEVICE *dptr)
 {
     int   i;
+#ifdef PDP6_DTC_PARTIAL_WRITE_V1529
+    dtc_partial_unit_v1529 = NULL;
+#endif
 
     dtc_dtsb = dtc_dtsa = 0;                                    /* clear status */
     dtc_selected_unit = -1;
